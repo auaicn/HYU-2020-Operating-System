@@ -7,5 +7,5 @@ int main(int argc,const char* argv[]){
     int ret_val;
     ret_val = myfunction(buf);
     printf(1,"Return Value : 0x%x",ret_val);
-    return 0;
+    exit(0);
 }
