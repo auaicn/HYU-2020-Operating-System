@@ -1,6 +1,10 @@
 struct stat;
 struct rtcdate;
 
+// here, 2 struct is 'declared' but not defined.
+// stat has definition in stat.h
+// where is rtcdate?
+
 // system calls
 int fork(void);
 int exit(void) __attribute__((noreturn));
@@ -23,6 +27,8 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int my_function(char*);
+int getppid(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

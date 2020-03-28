@@ -186,6 +186,7 @@ void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 
+//my functions
 int             printk_str(char*);
 
 // number of elements in fixed-size array
