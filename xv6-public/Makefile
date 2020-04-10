@@ -28,6 +28,7 @@ OBJS = \
 	vectors.o\
 	vm.o\
 	prac_syscall.o\
+	yield.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
