@@ -8,10 +8,14 @@
 #include "traps.h"
 #include "spinlock.h"
 
-// Interrupt descriptor table (shared by all CPUs).
+// Interrupt descriptor table 
+// (shared by all CPUs!!!).
 struct gatedesc idt[256];
+
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
+
+// heres the tick!
 uint ticks;
 
 void
@@ -51,7 +55,7 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
-      wakeup(&ticks);
+      wakeup(&ticks); //?
       release(&tickslock);
     }
     lapiceoi();

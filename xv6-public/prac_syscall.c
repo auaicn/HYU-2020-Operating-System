@@ -5,10 +5,11 @@
 int
 printk_str(char *str)
 {
-    cprintf("%s\n",str);
+    cprintf("%s by printk_str\n",str);
     return 0xABCDABCD;
 }
 
+// wrapper function maybe..
 int
 sys_myfunction(void)
 {
