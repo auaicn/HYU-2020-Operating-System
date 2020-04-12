@@ -7,6 +7,16 @@
 #include "mmu.h"
 #include "proc.h"
 
+//below is my implementation
+
+int 
+sys_yield(void)
+{
+	yield();
+	return 0;
+}
+
+//above is my implementation
 int
 sys_fork(void)
 {

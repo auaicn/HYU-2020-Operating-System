@@ -185,6 +185,7 @@ UPROGS=\
 	_my_userapp\
 	_getppid_test\
 	_test_yield\
+	_test_yield_implemented\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -256,7 +257,7 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c\
+	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c test_yield_implemented.c\
 
 dist:
 	rm -rf dist

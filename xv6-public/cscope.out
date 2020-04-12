@@ -1,4 +1,4 @@
-cscope 15 $HOME/os2020/2020_ELE3021_2016024811/xv6-public               0000273935
+cscope 15 $HOME/os2020/2020_ELE3021_2016024811/xv6-public               0000274002
 	@asm.h
 
 5 
@@ -24918,6 +24918,12 @@ tf
 
 	)
 
+25 
+	#SYS_y›ld
+ 24
+
+	)
+
 	@sysfile.c
 
 7 
@@ -28686,63 +28692,67 @@ fd
 	`g‘µid
 ();
 
-32 
+30 
+	`y›ld
+();
+
+33 
 	`¡©
 (cÚ¡ *, 
 ¡©
 *);
 
-33 * 
+34 * 
 	`¡rýy
 (*, const *);
 
-34 *
+35 *
 	`memmove
 (*, const *, );
 
-35 * 
+36 * 
 	`¡rchr
 (cÚ¡ *, 
 c
 );
 
-36 
+37 
 	`¡rcmp
 (const *, const *);
 
-37 
+38 
 	`´štf
 (, const *, ...);
 
-38 * 
+39 * 
 	`g‘s
 (*, 
 max
 );
 
-39 
+40 
 ušt
  
 	`¡¾’
 (const *);
 
-40 * 
+41 * 
 	`mem£t
 (*, , 
 ušt
 );
 
-41 * 
+42 * 
 	`m®loc
 (
 ušt
 );
 
-42 
+43 
 	`ä“
 (*);
 
-43 
+44 
 	`©oi
 (const *);
 
@@ -34929,9 +34939,15 @@ myfunùiÚ
 )
 
 33 
-	`SYSCALL
+	$SYSCALL
 (
 g‘µid
+)
+
+34 
+	`SYSCALL
+(
+y›ld
 )
 
 	@vectors.S
