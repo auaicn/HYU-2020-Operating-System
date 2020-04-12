@@ -67,8 +67,6 @@ gets(char *buf, int max)
   return buf;
 }
 
-// stat이랑 stat()는 구분이 되지요. 함수랑 자료형이니깐.
-// 
 int
 stat(const char *n, struct stat *st)
 {
@@ -83,7 +81,6 @@ stat(const char *n, struct stat *st)
   return r;
 }
 
-// integer 까지 밖에 안되네.
 int
 atoi(const char *s)
 {
@@ -95,7 +92,6 @@ atoi(const char *s)
   return n;
 }
 
-//byte shifting N times
 void*
 memmove(void *vdst, const void *vsrc, int n)
 {

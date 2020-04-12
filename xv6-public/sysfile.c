@@ -442,13 +442,3 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
-
-
-// mine
-
-int 
-sys_yield(void)
-{
-  yield()
-  return 0;
-}

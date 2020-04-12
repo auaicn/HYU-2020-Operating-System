@@ -8,14 +8,10 @@
 #include "traps.h"
 #include "spinlock.h"
 
-// Interrupt descriptor table 
-// (shared by all CPUs!!!).
+// Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
-
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
-
-// heres the tick!
 uint ticks;
 
 void
@@ -55,7 +51,7 @@ trap(struct trapframe *tf)
     if(cpuid() == 0){
       acquire(&tickslock);
       ticks++;
-      wakeup(&ticks); //?
+      wakeup(&ticks);
       release(&tickslock);
     }
     lapiceoi();
@@ -85,12 +81,7 @@ trap(struct trapframe *tf)
   //PAGEBREAK: 13
   default:
     if(myproc() == 0 || (tf->cs&3) == 0){
-      // cs is code segment
-      // cs's rightmost 2 bit represents priviledge level.
-      // so here, (tf->cs&3)==0 means checking if this interrupt has to access kernel!!!!!!!!
-
       // In kernel, it must be our mistake.
-      // 엥?
       cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n",
               tf->trapno, cpuid(), tf->eip, rcr2());
       panic("trap");

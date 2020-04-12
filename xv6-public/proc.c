@@ -7,7 +7,6 @@
 #include "proc.h"
 #include "spinlock.h"
 
-//ptable here!
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -325,28 +324,14 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  c->proc = 0; 
-  //이게 아마 현재 cpu가 가리키는 프로세스를 0 아마 스케줄려로 돌리는게 아닐까 싶네. 아니면 스케줄러 함수는 이번한번만 불려서 처음에 초기화해준 것일수도 있겠다. 
-  //어짜피 스케쥴러 동작은 아래 포문 계속 돌아가고 있는 상태일 뿐이니까 그게 더 맞겠네.
-
+  c->proc = 0;
   
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
-    // ptable lock은 yield함수에서도 잠시 획득했다가 state를 runnable로 바꿔주고 sched()호출 후 release해주기도 했던 락임.
-    // acquire 하는 지금 이 시점에서 계속 기다리고 있다가
-    acquire(&ptable.lock); 
-
-    //acquire이 불리는 순간 아래 포문을 통해 다음 프로세스를 선정하고 아직 안배운 메모리를 조정해주고나서
-    //c proc 0해주는건 뭐지?
-
-
-    // NPROC은 param.h에 64로 define 되어 있는데, xv6 최대 동시 프로세스 개수인가봐. 테이블 크기지.
-    // 프로세스가 비어있다는것은 0으로 표현할라나 모르겠네 그냥 table에서 빼고 shifting 해주려
-
-
+    acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -365,8 +350,6 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-
-    // released here.
     release(&ptable.lock);
 
   }

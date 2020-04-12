@@ -27,15 +27,12 @@ OBJS = \
 	uart.o\
 	vectors.o\
 	vm.o\
-	prac_syscall.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
 
 # Using native tools (e.g., on X86 Linux)
 #TOOLPREFIX = 
-
-# is there make config file?
 
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
@@ -57,10 +54,6 @@ endif
 # QEMU = qemu-system-i386
 
 # Try to infer the correct QEMU
-# if defined, where?
-# is it have relations with method to track the change? maybe yes...
-
-
 ifndef QEMU
 QEMU = $(shell if which qemu > /dev/null; \
 	then echo qemu; exit; \
@@ -78,12 +71,9 @@ QEMU = $(shell if which qemu > /dev/null; \
 	echo "***" 1>&2; exit 1)
 endif
 
-
-
-# here build starts....(?)
 CC = $(TOOLPREFIX)gcc
-AS = $(TOOLPREFIX)gas 	# gas?
-LD = $(TOOLPREFIX)ld 	# linker maybe
+AS = $(TOOLPREFIX)gas
+LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
@@ -93,18 +83,12 @@ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
-# ifneq(,) here right side is blank. so if left side's last command 'grep' do not print any line,
-# CFLAGS not appended with '-fno-pie -no-pie'
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
 CFLAGS += -fno-pie -no-pie
 endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
-
-# i dont'know if there is no '____' in command "make ____", wheter all lines are executed.
-# maybe yes?
-# there is "endif " somewhere then we could stop there.
 
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
@@ -147,9 +131,6 @@ kernel: $(OBJS) entry.o entryother initcode kernel.ld
 # exploring disk buffering implementations, but it is
 # great for testing the kernel on real hardware without
 # needing a scratch disk.
-
-#MEM FS OBJS. memory? file system objects.
-
 MEMFSOBJS = $(filter-out ide.o,$(OBJS)) memide.o
 kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
 	$(LD) $(LDFLAGS) -T kernel.ld -o kernelmemfs entry.o  $(MEMFSOBJS) -b binary initcode entryother fs.img
@@ -200,7 +181,6 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-	_my_userapp\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -272,8 +252,7 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil my_userapp.c\
-	
+	.gdbinit.tmpl gdbutil\
 
 dist:
 	rm -rf dist

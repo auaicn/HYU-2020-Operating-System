@@ -6,29 +6,29 @@
 
 #define NO              0
 
-#define SHIFT           (1<<0) //1
-#define CTL             (1<<1) //2
-#define ALT             (1<<2) //4
+#define SHIFT           (1<<0)
+#define CTL             (1<<1)
+#define ALT             (1<<2)
 
-#define CAPSLOCK        (1<<3) //8
-#define NUMLOCK         (1<<4) //16
-#define SCROLLLOCK      (1<<5) //32
+#define CAPSLOCK        (1<<3)
+#define NUMLOCK         (1<<4)
+#define SCROLLLOCK      (1<<5)
 
-#define E0ESC           (1<<6) //64
+#define E0ESC           (1<<6)
 
 // Special keycodes
-#define KEY_HOME        0xE0 //240
-#define KEY_END         0xE1 //241
-#define KEY_UP          0xE2 //242
-#define KEY_DN          0xE3 //243
-#define KEY_LF          0xE4 //244
-#define KEY_RT          0xE5 //245
-#define KEY_PGUP        0xE6 //246
-#define KEY_PGDN        0xE7 //247
-#define KEY_INS         0xE8 //248
-#define KEY_DEL         0xE9 //249
+#define KEY_HOME        0xE0
+#define KEY_END         0xE1
+#define KEY_UP          0xE2
+#define KEY_DN          0xE3
+#define KEY_LF          0xE4
+#define KEY_RT          0xE5
+#define KEY_PGUP        0xE6
+#define KEY_PGDN        0xE7
+#define KEY_INS         0xE8
+#define KEY_DEL         0xE9
 
-// C('A') == Control-A 
+// C('A') == Control-A
 #define C(x) (x - '@')
 
 static uchar shiftcode[256] =
