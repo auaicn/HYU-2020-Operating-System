@@ -8,6 +8,21 @@
 #include "proc.h"
 
 int
+sys_getlev(void)
+{
+  return getlev();
+}
+
+int
+sys_set_cpu_share(void)
+{
+  int share_;
+  if(argint(0, &share_) < 0)
+    return -1;
+  return set_cpu_share(share_)
+;}
+
+int
 sys_fork(void)
 {
   return fork();

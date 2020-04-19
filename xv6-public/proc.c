@@ -10,6 +10,8 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  int mlfq_share;
+  int mlfq_pass;
 } ptable;
 
 static struct proc *initproc;
@@ -17,8 +19,46 @@ static struct proc *initproc;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
-
 static void wakeup1(void *chan);
+
+// my implement
+
+int min(int x,int y){
+  return x<y?x:y;
+}
+
+int
+getlev(void)
+{
+  return myproc()->lev;
+}
+
+int
+set_cpu_share(int share)
+{
+  if (mlfq_share-share<20)
+    return -1;
+  if (share<0)
+    return -1;
+  else{
+    ptable.mlfq_share-=share;
+    struct proc* p= myproc();
+    p->in_mlfq = 0; //false;
+    p->share = 0;
+    struct proc* c;
+    int p->pass = ptable.mflq_pass;
+    for (c = ptable.proc; c<&ptable.proc[NPROC]; c++){
+      if(c->in_mlfq)
+        // pass processes on mlfq
+        continue;
+      else
+        p->pass = min(p->pass,c->pass);
+    }
+  }
+  return 1; //true
+}
+
+// until here
 
 void
 pinit(void)
