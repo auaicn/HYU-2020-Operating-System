@@ -20,5 +20,11 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+<<<<<<< HEAD
 #define	SYS_set_cpu_share 22
 #define SYS_getlev 23
+=======
+#define SYS_myfunction 22
+#define SYS_getppid 23
+#define SYS_yield 24
+>>>>>>> 30915810563f3dafc800eb270bb0d963c09145aa

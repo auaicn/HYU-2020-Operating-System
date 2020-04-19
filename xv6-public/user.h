@@ -27,6 +27,11 @@ int set_cpu_share(int);
 int getlev(void);
 int yield(void);
 
+//below is mine
+int myfunction(char*);
+int getppid(void);
+int yield(void);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

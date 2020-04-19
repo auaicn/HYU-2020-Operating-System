@@ -7,6 +7,16 @@
 #include "mmu.h"
 #include "proc.h"
 
+//below is my implementation
+
+int 
+sys_yield(void)
+{
+	yield();
+	return 0;
+}
+
+//above is my implementation
 int
 sys_getlev(void)
 {
@@ -55,6 +65,12 @@ int
 sys_getpid(void)
 {
   return myproc()->pid;
+}
+
+int
+sys_getppid(void)
+{
+	return myproc()->parent->pid;
 }
 
 int

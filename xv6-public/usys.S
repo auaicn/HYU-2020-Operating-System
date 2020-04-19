@@ -29,6 +29,11 @@ SYSCALL(getpid)
 SYSCALL(sbrk)
 SYSCALL(sleep)
 SYSCALL(uptime)
+<<<<<<< HEAD
 SYSCALL(set_cpu_share)
 SYSCALL(getlev)
+=======
+SYSCALL(myfunction)
+SYSCALL(getppid)
+>>>>>>> 30915810563f3dafc800eb270bb0d963c09145aa
 SYSCALL(yield)
