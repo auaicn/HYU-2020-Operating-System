@@ -23,11 +23,10 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int set_cpu_share(int);
-int getlev(void);
-int yield(void);
 
 //below is mine
+int set_cpu_share(int);
+int getlev(void);
 int myfunction(char*);
 int getppid(void);
 int yield(void);

@@ -103,11 +103,12 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+
 extern int sys_set_cpu_share(void);
 extern int sys_getlev(void);
+extern int sys_yield(void);
 extern int sys_myfunction(void);
 extern int sys_getppid(void);
-extern int sys_yield(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -131,12 +132,12 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+
 [SYS_set_cpu_share] sys_set_cpu_share,
 [SYS_getlev]  sys_getlev,
 [SYS_yield]   sys_yield,
 [SYS_myfunction]	sys_myfunction,
 [SYS_getppid]	sys_getppid,
-[SYS_yield] sys_yield,
 };
 
 
