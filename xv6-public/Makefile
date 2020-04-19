@@ -182,11 +182,9 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-<<<<<<< HEAD
 	_test_master\
 	_test_mlfq\
 	_test_stride\
-=======
 	_my_userapp\
 	_getppid_test\
 	_test_yield\
@@ -194,7 +192,6 @@ UPROGS=\
 	_test_mlfq\
 	_test_stride\
 	_test_master\
->>>>>>> 30915810563f3dafc800eb270bb0d963c09145aa
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -266,12 +263,9 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-<<<<<<< HEAD
 	.gdbinit.tmpl gdbutil test_master.c test_mlfq.c test_stride.c\
-=======
 	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c test_yield_implemented.c\
 	test_mlfq.c test_stride.c test_master.c\
->>>>>>> 30915810563f3dafc800eb270bb0d963c09145aa
 
 dist:
 	rm -rf dist

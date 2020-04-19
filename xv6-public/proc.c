@@ -36,19 +36,19 @@ getlev(void)
 int
 set_cpu_share(int share)
 {
-  if (mlfq_share-share<20)
+  if (ptable.mlfq_share-share<20)
     return -1;
   if (share<0)
     return -1;
   else{
     ptable.mlfq_share-=share;
     struct proc* p= myproc();
-    p->in_mlfq = 0; //false;
+    p->on_mlfq = 0; //false;
     p->share = 0;
     struct proc* c;
-    int p->pass = ptable.mflq_pass;
+    p->pass = ptable.mlfq_pass;
     for (c = ptable.proc; c<&ptable.proc[NPROC]; c++){
-      if(c->in_mlfq)
+      if(c->on_mlfq)
         // pass processes on mlfq
         continue;
       else
@@ -151,6 +151,10 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+  p->share = 0;
+  p->on_mlfq = 0;
+  p->lev = 0;
 
   return p;
 }
@@ -365,6 +369,9 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  ptable.mlfq_pass = 0;
+  ptable.mlfq_share =100;
   
   for(;;){
     // Enable interrupts on this processor.
