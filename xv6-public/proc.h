@@ -54,6 +54,7 @@ struct proc {
   int lev;
   int share;
   int pass;
+  int age;
 
 };
 

@@ -10,9 +10,20 @@
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct q_element* q1;
+} ptable;
+
+struct {
+  struct proc* proc[NPROC]; // min-heap implemented
   int mlfq_share;
   int mlfq_pass;
-} ptable;
+  int stable_size;
+} stable;
+
+struct q_element{
+  struct q_element* next;
+  struct proc* content; 
+};
 
 static struct proc *initproc;
 
@@ -36,26 +47,30 @@ getlev(void)
 int
 set_cpu_share(int share)
 {
-  if (ptable.mlfq_share-share<20)
+
+  // failure 
+  if (stable.mlfq_share-share<20)
     return -1;
   if (share<0)
     return -1;
+
+  // success
   else{
-    ptable.mlfq_share-=share;
+    //to implement : find in queue and then get it to stable.
+    stable.proc[++stable.stable_size] = myproc();
+    stable.mlfq_share -= share;
     struct proc* p= myproc();
-    p->on_mlfq = 0; //false;
-    p->share = 0;
+    p->share = share;
     struct proc* c;
-    p->pass = ptable.mlfq_pass;
-    for (c = ptable.proc; c<&ptable.proc[NPROC]; c++){
-      if(c->on_mlfq)
-        // pass processes on mlfq
-        continue;
-      else
-        p->pass = min(p->pass,c->pass);
+    p->pass = stable.mlfq_pass;
+    
+    for (int i=0;i<stable.stable_size;i++){
+      c = stable.proc[i+1];
+      p->pass = min(p->pass,c->pass);
     }
+
   }
-  return 1; //true
+  return 1;
 }
 
 // until here
@@ -153,8 +168,9 @@ found:
   p->context->eip = (uint)forkret;
 
   p->share = 0;
-  p->on_mlfq = 0;
+  p->on_mlfq = 1;
   p->lev = 0;
+  p->age = 0;
 
   return p;
 }
@@ -167,8 +183,9 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
+  // pid 1 process
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -370,33 +387,122 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  ptable.mlfq_pass = 0;
-  ptable.mlfq_share =100;
+  stable.mlfq_pass = 0;
+  stable.mlfq_share =100;
+  stable.stable_size = 0;
+
+  // stable initialized?
+  // struct proc mlfq;
+
+  uint total_tick = 0;
+
+  cprintf("stable.mlfq_pass setted to %d\n",stable.mlfq_pass);
+  cprintf("stable.mlfq_share setted to %d\n",stable.mlfq_share);
   
+  int temp = nextpid;
+  for(p = ptable.proc; temp; temp--,p++ ){
+    cprintf("pid(%d) pass(%d) share(%d) on_mlfq(%d)\n",p->pid,p->pass,p->share,p->on_mlfq);
+  }
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+    // my implementation starts
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+    if(total_tick>100){
+      total_tick = 0;
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        p->lev = 0;
+        p->age = 0;
+      }
     }
+
+
+    int do_mlfq = 0;
+    int min_index = 0;
+
+    if(stable.stable_size == 0){
+      // set_cpu_share is not called for now
+      // do mlfq
+      do_mlfq = 1;
+    }else{
+
+      // find minimum pass
+      // int min_index = 0;
+      int min_pass = stable.mlfq_pass;
+      for (int i=0;i<stable.stable_size;i++){
+        if (stable.proc[i+1] -> pass < min_pass){
+          min_pass = stable.proc[i+1] -> pass;
+          min_index = i + 1;
+        }
+      }
+
+      if(min_index == 0){
+        stable.mlfq_pass+= 1000000000/stable.mlfq_share;
+        do_mlfq = 1;
+      }
+    }
+
+    if(!do_mlfq){
+
+      //stride scheduling
+      p = stable.proc[min_index];
+      p -> pass += 1000000000 / p->share;
+
+    }else{
+
+      //mlfq scheduling
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE)
+          continue;
+        else
+          break;
+      }
+      p -> age++;
+      for (int i = 0; i < (1<< (p->lev)); i++){
+        c->proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+
+        swtch(&(c->scheduler), p->context); total_tick++;
+        switchkvm();
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      
+        //release
+        release(&ptable.lock);
+      }
+      if(p->age==5&&p->lev!=2){
+        p->age =0;
+        p->lev++;
+      }
+      continue;
+    }
+
+    // my implementation ends
+
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+
+    swtch(&(c->scheduler), p->context); total_tick++;
+    switchkvm();
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+  
+    //release
     release(&ptable.lock);
 
   }
