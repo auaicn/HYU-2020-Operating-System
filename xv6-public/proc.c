@@ -14,7 +14,7 @@ struct {
 } ptable;
 
 struct {
-  struct proc* proc[NPROC]; // min-heap implemented
+  struct proc proc[NPROC]; // min-heap implemented
   int mlfq_share;
   int mlfq_pass;
   int stable_size;
