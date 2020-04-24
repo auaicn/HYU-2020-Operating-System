@@ -91,6 +91,7 @@ kalloc(void)
     kmem.freelist = r->next;
   if(kmem.use_lock)
     release(&kmem.lock);
+  //cprintf("kalloc called\n");
   return (char*)r;
 }
 

@@ -34,16 +34,16 @@ static void wakeup1(void *chan);
 
 // my implement
 
-int 
+void 
 ptable_lookup(void)
 {
   acquire(&ptable.lock);
 
   struct proc* p;
-  cprintf("%8s%8s%8s%8s%8s\n","pid","state","level","share","type")
+  cprintf("  %s     %s     %s     %s     %s\n","pid","state","level","share","type");
   for (p = &ptable.proc[0]; p->pid!=0;p++){
-    cprintf("%8d%8d%8d%8d%8d\n",p->pid,p->state,p->lev,p->share,temp_->state);
-    //cprintf("pid(%8d) state(%8d) level(%d) share(%d) type(%d) \n",p->pid,p->state,p->lev,p->share,temp_->state);
+    cprintf("  %d     %d     %d     %d     %s\n",p->pid,p->state,p->lev,p->share,p->share==0?"mlfq":"stride");
+    //cprintf("pid(     %8d) state(%8d) level(%d) share(%d) type(%d) \n",p->pid,p->state,p->lev,p->share,temp_->state);
 
   }
   release(&ptable.lock);
@@ -472,7 +472,7 @@ scheduler(void)
 
       //stride scheduling
       p = stable.proc[min_index];
-      p -> pass += 1000000000 / p->share;
+      p -> pass += 1000 / p->share;
 
     }else{
 

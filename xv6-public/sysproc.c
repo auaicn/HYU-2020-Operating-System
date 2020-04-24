@@ -12,7 +12,7 @@
 int
 sys_ptable_lookup(void)
 {
-  printk_str(str);
+  ptable_lookup();
   return 0; //success
 }
 
