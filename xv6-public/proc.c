@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define MULTSTRIDESHARE (1000)
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -462,17 +464,17 @@ scheduler(void)
       }
 
       if(min_index == 0){
-        stable.mlfq_pass+= 1000000000/stable.mlfq_share;
+        stable.mlfq_pass+= MULTSTRIDESHARE/stable.mlfq_share;
         do_mlfq = 1;
       }
     }
 
     if(!do_mlfq){
-      //cprintf("stride scheduled\n");
+      cprintf("stride scheduled\n");
 
       //stride scheduling
       p = stable.proc[min_index];
-      p -> pass += 1000 / p->share;
+      p -> pass += MULTSTRIDESHARE / p->share;
 
     }else{
 
@@ -484,8 +486,8 @@ scheduler(void)
       }
       */
 
+      cprintf("mlfq scheduled\n");
       //mlfq scheduling
-      //cprintf("mlfq scheduled\n");
       for(;;){
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
           //cprintf("1");
