@@ -14,7 +14,7 @@ struct {
 } ptable;
 
 struct {
-  struct proc proc[NPROC]; // min-heap implemented
+  struct proc* proc[NPROC]; // min-heap implemented
   int mlfq_share;
   int mlfq_pass;
   int stable_size;
@@ -170,6 +170,9 @@ found:
   p->share = 0;
   p->lev = 0;
   p->age = 0;
+  p->pass = 0;
+
+  cprintf("pid(%d) pass(%d) share(%d)\n",p->pid,p->pass,p->share);
 
   return p;
 }
@@ -386,8 +389,8 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  stable.mlfq_pass = 0;
   stable.mlfq_share =100;
+  stable.mlfq_pass = 0;
   stable.stable_size = 0;
 
   // stable initialized?
@@ -406,7 +409,7 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    cprintf("tick : %d global tick : %d \n",ticks,total_tick);
+    //cprintf("tick : %d global tick : %d \n",ticks,total_tick);
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
@@ -415,7 +418,7 @@ scheduler(void)
     p = NULL;
     
     if(total_tick>100){
-      cprintf("boosting boosting boosting boosting boosting \n");
+      //cprintf("boosting boosting boosting boosting boosting \n");
       total_tick = 0;
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         p->lev = 0;
@@ -450,7 +453,7 @@ scheduler(void)
     }
 
     if(!do_mlfq){
-      cprintf("stride scheduled\n");
+      //cprintf("stride scheduled\n");
 
       //stride scheduling
       p = stable.proc[min_index];
@@ -458,14 +461,16 @@ scheduler(void)
 
     }else{
 
+      /*
       int temp = nextpid;
       struct proc* temp_;
       for(temp_ = ptable.proc; temp; temp--,temp_++ ){
         cprintf("pid(%d) pass(%d) level(%d) share(%d) type(%d) \n",temp_->pid,temp_->pass,temp_->lev,temp_->share,temp_->state);
       }
+      */
 
       //mlfq scheduling
-      cprintf("mlfq scheduled\n");
+      //cprintf("mlfq scheduled\n");
       for(;;){
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
           //cprintf("1");
