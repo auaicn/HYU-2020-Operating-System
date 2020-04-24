@@ -263,7 +263,6 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil test_master.c test_mlfq.c test_stride.c\
 	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c test_yield_implemented.c\
 	test_mlfq.c test_stride.c test_master.c\
 
