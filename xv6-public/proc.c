@@ -51,7 +51,7 @@ set_cpu_share(int share)
   // failure 
   if (stable.mlfq_share-share<20)
     return -1;
-  if (share<0)
+  if (share < 0)
     return -1;
 
   // success
@@ -168,7 +168,6 @@ found:
   p->context->eip = (uint)forkret;
 
   p->share = 0;
-  p->on_mlfq = 1;
   p->lev = 0;
   p->age = 0;
 
@@ -401,19 +400,22 @@ scheduler(void)
   
   int temp = nextpid;
   for(p = ptable.proc; temp; temp--,p++ ){
-    cprintf("pid(%d) pass(%d) share(%d) on_mlfq(%d)\n",p->pid,p->pass,p->share,p->on_mlfq);
+    cprintf("pid(%d) pass(%d) share(%d)\n",p->pid,p->pass,p->share);
   }
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
+    cprintf("tick : %d global tick : %d \n",ticks,total_tick);
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 
     // my implementation starts
-
+    p = NULL;
+    
     if(total_tick>100){
+      cprintf("boosting boosting boosting boosting boosting \n");
       total_tick = 0;
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         p->lev = 0;
@@ -448,6 +450,7 @@ scheduler(void)
     }
 
     if(!do_mlfq){
+      cprintf("stride scheduled\n");
 
       //stride scheduling
       p = stable.proc[min_index];
@@ -455,14 +458,30 @@ scheduler(void)
 
     }else{
 
-      //mlfq scheduling
-      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        if(p->state != RUNNABLE)
-          continue;
-        else
-          break;
+      int temp = nextpid;
+      struct proc* temp_;
+      for(temp_ = ptable.proc; temp; temp--,temp_++ ){
+        cprintf("pid(%d) pass(%d) level(%d) share(%d) type(%d) \n",temp_->pid,temp_->pass,temp_->lev,temp_->share,temp_->state);
       }
+
+      //mlfq scheduling
+      cprintf("mlfq scheduled\n");
+      for(;;){
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+          //cprintf("1");
+          if(p->state != RUNNABLE)
+            continue;
+          else
+            goto found;
+        }
+        release(&ptable.lock);
+        sti();
+        acquire(&ptable.lock);
+      }
+found:
+      //cprintf("\n");
       p -> age++;
+      /*
       for (int i = 0; i < (1<< (p->lev)); i++){
         c->proc = p;
         switchuvm(p);
@@ -478,20 +497,22 @@ scheduler(void)
         //release
         release(&ptable.lock);
       }
-      if(p->age==5&&p->lev!=2){
-        p->age =0;
-        p->lev++;
+      */
+      if(p -> age == 5 && p -> lev != 2){
+        p -> age = 0;
+        p -> lev++;
       }
-      continue;
+      //continue;
     }
 
     // my implementation ends
-
 
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
     c->proc = p;
+   // cprintf("p : 0x%x pid(%d) kstack(0x%x) type(%s)\n",p,p->pid,p->kstack,p->state);
+    
     switchuvm(p);
     p->state = RUNNING;
 
