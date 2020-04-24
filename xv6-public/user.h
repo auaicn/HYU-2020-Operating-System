@@ -30,6 +30,7 @@ int getlev(void);
 int myfunction(char*);
 int getppid(void);
 int yield(void);
+int ptable_lookup(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

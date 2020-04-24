@@ -9,6 +9,14 @@
 
 //below is my implementation
 
+int
+sys_ptable_lookup(void)
+{
+  printk_str(str);
+  return 0; //success
+}
+
+
 int 
 sys_yield(void)
 {

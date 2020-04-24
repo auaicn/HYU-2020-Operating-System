@@ -10,9 +10,12 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+// ptable_lookup.c
+void 			ptable_lookup(void);
+
 // prac_suscall.c
-int printk_str(char*);
-int getppid(void);
+int 			printk_str(char*);
+int 			getppid(void);
 
 // bio.c
 void            binit(void);
