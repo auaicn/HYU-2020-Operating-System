@@ -409,6 +409,7 @@ wait(void)
 void 
 boost (void)
 {
+  cprintf("BOOSTING\n");
   for (int i=0;i<NPROC;i++)
   {
     if(ptable.proc[i].pid==0)
@@ -416,7 +417,46 @@ boost (void)
     ptable.proc[i].lev = 0;
     ptable.proc[i].age = 5;
   }
+  total_tick = 0;
 }
+
+void
+scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&ptable.lock);
+
+  }
+}
+
+/*
 
 void
 scheduler(void)
@@ -442,7 +482,8 @@ scheduler(void)
     acquire(&stable.lock);
     acquire(&ptable.lock);
 
-    cprintf("SCHEDULING\n");
+    // ptable_lookup();
+    // cprintf("SCHEDULING\n");
     // my implementation starts
 
     if(!(total_tick%100))
@@ -450,7 +491,7 @@ scheduler(void)
 
     min_index = 0;
     for (int i = 1; i < stable.stable_size; i++ ){
-      if(stable.proc[i]->state != RUNNABLE || stable.proc[i]->share == 0)
+      if(stable.proc[i]->state != RUNNABLE || stable.proc[i] -> share == 0)
         continue;
       if(stable.proc[i] -> pass < stable.proc[min_index] -> pass)
         min_index = i;
@@ -461,11 +502,11 @@ scheduler(void)
       cprintf("MLFQ\n");
       for (;;){
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-          if(p->state != RUNNABLE || p->share != 0)
+          if(p->state != RUNNABLE || p -> share != 0)
             continue;
           break;
         }
-        if(p->state == RUNNABLE)
+        if(p->state == RUNNABLE && p -> share == 0)
           break;
       }
     }else{
@@ -487,11 +528,11 @@ scheduler(void)
     cprintf("SELECTED pid(%d) state(%d) share(%d)\n",p->pid,p->state,p->share);
 
     c->proc = p;
-    
     switchuvm(p);
     p->state = RUNNING;
 
     swtch(&(c->scheduler), p->context); 
+
     cprintf("CAME BACK\n");
     total_tick++;
     switchkvm();
@@ -506,6 +547,7 @@ scheduler(void)
 
   }
 }
+*/
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
