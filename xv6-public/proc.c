@@ -459,10 +459,14 @@ scheduler(void)
     if(min_index == 0){
       // MLFQ scheduling
       cprintf("MLFQ\n");
-      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        if(p->state != RUNNABLE || p->share != 0)
-          continue;
-        break;
+      for (;;){
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+          if(p->state != RUNNABLE || p->share != 0)
+            continue;
+          break;
+        }
+        if(p->state == RUNNABLE)
+          break;
       }
     }else{
       // STRIDE scheduling
@@ -480,14 +484,16 @@ scheduler(void)
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
 
-    cprintf("SELECTED\n");
+    cprintf("SELECTED pid(%d) state(%d) share(%d)\n",p->pid,p->state,p->share);
 
     c->proc = p;
     
     switchuvm(p);
     p->state = RUNNING;
 
-    swtch(&(c->scheduler), p->context); total_tick++;
+    swtch(&(c->scheduler), p->context); 
+    cprintf("CAME BACK\n");
+    total_tick++;
     switchkvm();
 
     // Process is done running for now.
