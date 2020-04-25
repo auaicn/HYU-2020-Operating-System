@@ -33,18 +33,20 @@ main(int argc, char *argv[])
     exit();
   }
 
+  int pid_stride = getpid();
+  printf(1,"pid(%d) cpu_setted\n",pid_stride);
   // Get start time
   start_tick = uptime();
 
   i = 0;
   while (1) {
     i++;
-
     // Prevent code optimization
     __sync_synchronize();
 
     if (i == COUNT_PERIOD) {
       cnt++;
+      //printf(1,"pid(%d) cnt(%d)\n",pid_stride,cnt);
 
       // Get current time
       curr_tick = uptime();
