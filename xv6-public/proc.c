@@ -296,7 +296,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-  cprintf("fork success\n");
+  //cprintf("fork success\n");
   return pid;
 }
 
@@ -480,15 +480,6 @@ scheduler(void)
     acquire(&ptable.lock);
     if(total_ticks==100)
       boost();
-    /*
-    if(!(ticks%1000)){
-      cprintf("stable size : %d\n",stable.stable_size);
-      for (int i=0;i<stable.stable_size;i++){
-        s = stable.proc[i];
-        cprintf("pid [%d] share[%d%%] pass[%d]\n",s->pid,s->share,s->pass);
-      }
-    }
-    */
 
     min_index = 0;
     for (int i = 0; i < stable.stable_size; i++ ){
@@ -499,26 +490,12 @@ scheduler(void)
       }
     }
 
-
     p = stable.proc[min_index];
     p->pass += MULTSTRIDESHARE / p->share;
     min_pass = p->pass;
 
-    //cprintf("mindex:%d\n",min_index);
     if(min_index == 0){
       // MLFQ scheduling
-      //cprintf("MLFQ\n");
-      /*
-      for (;;){
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-          if(p->state != RUNNABLE || p -> share != 0)
-            continue;
-          break;
-        }
-        if(p->state == RUNNABLE && p -> share == 0)
-          break;
-      }
-      */
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE || p -> share != 0)
           continue;
@@ -526,16 +503,6 @@ scheduler(void)
       }
     }
 
-    //else
-      //cprintf("STRIDE\n");
-
-    /*
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-      break;
-    }
-    */
     if(p->state==RUNNABLE){
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it

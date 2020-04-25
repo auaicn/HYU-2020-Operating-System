@@ -34,7 +34,7 @@ main(int argc, char *argv[])
   }
 
   int pid_stride = getpid();
-  printf(1,"pid(%d) cpu_setted\n",pid_stride);
+  //printf(1,"pid(%d) cpu_setted\n",pid_stride);
   // Get start time
   start_tick = uptime();
 
