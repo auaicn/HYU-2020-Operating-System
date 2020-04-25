@@ -19,6 +19,7 @@ struct {
   struct proc* proc[NPROC]; // min-heap implemented
   int mlfq_share;
   int mlfq_pass;
+  struct spinlock lock;
   int stable_size;
 } stable;
 
@@ -33,6 +34,8 @@ int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 static void wakeup1(void *chan);
+
+uint total_tick = 0;
 
 // my implement
 
@@ -64,29 +67,28 @@ getlev(void)
 int
 set_cpu_share(int share)
 {
-
+  acquire(&stable.lock);
   // failure 
-  if (stable.mlfq_share-share<20)
+  if (stable.mlfq_share-share<20||share<0){
+    release(&stable.lock);
+    cprintf("proc.c:set_cpu_share:: unable to set cpu share\n");
     return -1;
-  if (share < 0)
-    return -1;
-
-  // success
-  else{
-    //to implement : find in queue and then get it to stable.
-    stable.proc[++stable.stable_size] = myproc();
-    stable.mlfq_share -= share;
-    struct proc* p= myproc();
-    p->share = share;
-    struct proc* c;
-    p->pass = stable.mlfq_pass;
-    
-    for (int i=0;i<stable.stable_size;i++){
-      c = stable.proc[i+1];
-      p->pass = min(p->pass,c->pass);
-    }
-
   }
+
+  //to implement : find in queue and then get it to stable.
+  stable.proc[++stable.stable_size] = myproc();
+  stable.mlfq_share -= share;
+  struct proc* p= myproc();
+  p->share = share;
+  struct proc* c;
+  p->pass = stable.mlfq_pass;
+  
+  for (int i=0;i<stable.stable_size;i++){
+    c = stable.proc[i+1];
+    p->pass = min(p->pass,c->pass);
+  }
+
+  release(&stable.lock);
   return 1;
 }
 
@@ -184,9 +186,12 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  p->share = 0;
+  // for MLFQ scheduling
   p->lev = 0;
-  p->age = 0;
+  p->age = 5;
+
+  // for STRIDE scheduling
+  p->share = 0;
   p->pass = 0;
 
   cprintf("pid(%d) pass(%d) share(%d)\n",p->pid,p->pass,p->share);
@@ -399,6 +404,20 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+void 
+boost (void)
+{
+  acquire(&ptable.lock);
+  for (int i=0;i<NPROC;i++)
+  {
+    it(ptable[i].pid==0)
+      break;
+    ptable[i].lev = 0;
+    ptable[i].age = 5;
+  }
+  release(&ptable.lock);
+}
+
 void
 scheduler(void)
 {
@@ -406,125 +425,49 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  stable.mlfq_share =100;
-  stable.mlfq_pass = 0;
-  stable.stable_size = 0;
+  struct proc mlfq;
+  stable[0] = &mlfq;
+  mlfq.share = 100;
+  mlfq.pass = 0;
+  mlfq.name = "mlfq";
 
-  // stable initialized?
-  // struct proc mlfq;
+  stable.stable_size = 1;
 
-  uint total_tick = 0;
-
-  cprintf("stable.mlfq_pass setted to %d\n",stable.mlfq_pass);
-  cprintf("stable.mlfq_share setted to %d\n",stable.mlfq_share);
-  
-  int temp = nextpid;
-  for(p = ptable.proc; temp; temp--,p++ ){
-    cprintf("pid(%d) pass(%d) share(%d)\n",p->pid,p->pass,p->share);
-  }
+  p = NULL;
 
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    //cprintf("tick : %d global tick : %d \n",ticks,total_tick);
 
     // Loop over process table looking for process to run.
+    acquire(&stable.lock);
     acquire(&ptable.lock);
 
     // my implementation starts
-    p = NULL;
-    
-    if(total_tick>100){
-      //cprintf("boosting boosting boosting boosting boosting \n");
-      total_tick = 0;
-      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-        p->lev = 0;
-        p->age = 0;
-      }
-    }
 
+    if(!(total_tick%100))
+      boost();
 
-    int do_mlfq = 0;
     int min_index = 0;
-
-    if(stable.stable_size == 0){
-      // set_cpu_share is not called for now
-      // do mlfq
-      do_mlfq = 1;
-    }else{
-
-      // find minimum pass
-      // int min_index = 0;
-      int min_pass = stable.mlfq_pass;
-      for (int i=0;i<stable.stable_size;i++){
-        if (stable.proc[i+1] -> pass < min_pass){
-          min_pass = stable.proc[i+1] -> pass;
-          min_index = i + 1;
-        }
-      }
-
-      if(min_index == 0){
-        stable.mlfq_pass+= MULTSTRIDESHARE/stable.mlfq_share;
-        do_mlfq = 1;
-      }
+    for (int i = 1; i < stable.stable_size; i++ ){
+      if(stable.proc[i]->state != RUNNABLE || stable.proc[i]->share == 0)
+        continue;
+      if(stable.proc[i]->pass < stable.proc[min_index])
+        min_index = i;
     }
 
-    if(!do_mlfq){
-      cprintf("stride scheduled\n");
+    if(stable.proc[min_index]->name == "mlfq"){
 
-      //stride scheduling
+      // MLFQ scheduling
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE || p->share != 0)
+          continue;
+        break;
+      }
+    }else{
+      // STRIDE scheduling
       p = stable.proc[min_index];
       p -> pass += MULTSTRIDESHARE / p->share;
-
-    }else{
-
-      /*
-      int temp = nextpid;
-      struct proc* temp_;
-      for(temp_ = ptable.proc; temp; temp--,temp_++ ){
-        cprintf("pid(%d) pass(%d) level(%d) share(%d) type(%d) \n",temp_->pid,temp_->pass,temp_->lev,temp_->share,temp_->state);
-      }
-      */
-
-      cprintf("mlfq scheduled\n");
-      //mlfq scheduling
-      for(;;){
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-          //cprintf("1");
-          if(p->state != RUNNABLE)
-            continue;
-          else
-            goto found;
-        }
-        release(&ptable.lock);
-        sti();
-        acquire(&ptable.lock);
-      }
-found:
-      //cprintf("\n");
-      p -> age++;
-      /*
-      for (int i = 0; i < (1<< (p->lev)); i++){
-        c->proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
-
-        swtch(&(c->scheduler), p->context); total_tick++;
-        switchkvm();
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      
-        //release
-        release(&ptable.lock);
-      }
-      */
-      if(p -> age == 5 && p -> lev != 2){
-        p -> age = 0;
-        p -> lev++;
-      }
-      //continue;
     }
 
     // my implementation ends
@@ -533,7 +476,6 @@ found:
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
     c->proc = p;
-   // cprintf("p : 0x%x pid(%d) kstack(0x%x) type(%s)\n",p,p->pid,p->kstack,p->state);
     
     switchuvm(p);
     p->state = RUNNING;
@@ -546,6 +488,7 @@ found:
     c->proc = 0;
   
     //release
+    release(&stable.lock);
     release(&ptable.lock);
 
   }
