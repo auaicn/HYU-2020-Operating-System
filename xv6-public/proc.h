@@ -55,6 +55,8 @@ struct proc {
   int age;
   int lev;
 
+  int from_trap;
+
   //  STRIDE SCHEDULING
   int share;
   int pass;
