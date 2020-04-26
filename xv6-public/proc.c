@@ -215,8 +215,8 @@ found:
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
   release(&ptable.lock);
 
-  cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
-  // queue_table_lookup();
+  //cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
+  //queue_table_lookup();
 
   return p;
 }
@@ -329,7 +329,6 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-  cprintf("fork success pid[%d]\n",np->pid);
   return pid;
 }
 
@@ -375,6 +374,7 @@ exit(void)
   
   struct proc* t;
   if(curproc -> share == 0){
+    cprintf("MLFQ EXIT\n");
 
     // MLFQ scheduled process exits
     for (int i=0;i<=ptable.q_size[curproc->lev];i++){
@@ -385,7 +385,6 @@ exit(void)
         for (int j=i;j<=ptable.q_size[curproc->lev];j++)
           ptable.ARRAYQUEUE[curproc->lev][j] = ptable.ARRAYQUEUE[curproc->lev][j+1];
         
-        ptable.q_size[curproc->lev]--;
         break;
       }
 
