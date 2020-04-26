@@ -176,10 +176,11 @@ trap(struct trapframe *tf)
     cprintf("pid(%d) state(%d) share(%d)\n",p->pid,p->state,p->share);
     */
     if(p->share == 0){
-      
+
       acquire(&tickslock);
       total_ticks++;
       release(&tickslock);
+
       /*
       acquire(&tickslock);
       total_ticks++;

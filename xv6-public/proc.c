@@ -469,7 +469,9 @@ scheduler(void)
   mlfq.state = RUNNABLE;
   stable.proc[stable.stable_size++] = &mlfq;
 
+  // preven memory leakage
   int min_index;
+  int i;
 
   p = &ptable.proc[1];
 
@@ -479,11 +481,11 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    if(total_ticks % 10000 == 0)
+    if(total_ticks % 100 == 0)
       boost();
 
     min_index = 0;
-    for (int i = 0; i < stable.stable_size; i++ ){
+    for (i = 0; i < stable.stable_size; i++ ){
       if(stable.proc[i]->state != RUNNABLE)
         continue;
       if(stable.proc[i] -> pass < stable.proc[min_index] -> pass){
