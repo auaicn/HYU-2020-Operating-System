@@ -374,7 +374,7 @@ exit(void)
   
   struct proc* t;
   if(curproc -> share == 0){
-    cprintf("MLFQ EXIT\n");
+    //cprintf("MLFQ EXIT\n");
 
     // MLFQ scheduled process exits
     for (int i=0;i<=ptable.q_size[curproc->lev];i++){
