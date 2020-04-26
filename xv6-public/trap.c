@@ -15,6 +15,8 @@ struct spinlock tickslock;
 uint ticks;
 uint total_ticks;
 
+int time_quantom[3] = {1,2,4};
+
 void
 tvinit(void)
 {
@@ -51,11 +53,70 @@ trap(struct trapframe *tf)
   case T_IRQ0 + IRQ_TIMER:
     if(cpuid() == 0){
       acquire(&tickslock);
-      total_ticks++;
       ticks++;
       wakeup(&ticks);
       release(&tickslock);
     }
+      //cprintf("in Timer\n");
+     
+      // ticks now only related to mlfq.
+      // actually stride is managed by pass(STRIDE SCHEDULER)
+      // actually stride scheduler is not related with ticks.
+      // but not adding ticks in stride case can be cause some..
+      // sleep with timer? but there's no time I think
+      // and then sleep() paramenter is chan(channel), which is
+      // address of to_wake_up process
+      
+      // queue implementation here ? maybe think more.
+      
+      // maybe overhead but better than return at scheduler explicitly I think
+      // maybe p could be 0 (kernel, scheduler) when interrupted while executing scheduler code
+      // scheduler has context and share could be initialized to 0
+      // then how to handle it ?
+
+      /*
+      struct proc* p = myproc();
+      cprintf("AUAICN\n");
+      cprintf("0x%x\n",p);
+      cprintf("pid(%d) state(%d) share(%d)\n",p->pid,p->state,p->share);
+      if(p->share == 0){
+        acquire(&tickslock);
+        total_ticks++;
+        ticks++;
+        wakeup(&ticks);
+        release(&tickslock);
+
+        // not have idea what below 1 line represents but..
+        // needed or need not ?
+        //lapiceoi();
+        if(p -> start_tick + time_quantom[p->lev] <= ticks){
+          // time to be changed.
+          // yield  implemented below 
+          //        not explicitly call here.
+          // start_tick   has changed in proc.c:scheduler()
+          //              right before context switch is applied.
+          if(p->lev==2);
+            //do nothing
+          else{
+            p->age--;
+            if(p->age);
+            else{
+              p -> lev++;
+              p -> age = 5;
+            }
+          }
+        }
+        else{
+          // time quantom guaranteed here
+          // yield is similar to "IO bound jobs" compared to "compute jobs"
+          // should guarantee it's execution more.
+          // just return
+          yield();
+          //return;
+        }
+      }
+    }
+    */
     lapiceoi();
     break;
   case T_IRQ0 + IRQ_IDE:
@@ -104,11 +165,63 @@ trap(struct trapframe *tf)
 
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
-  if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER)
+  if(myproc() 
+    && myproc()->state == RUNNING 
+    && tf->trapno == T_IRQ0+IRQ_TIMER){
+    
+    struct proc* p = myproc();
+    /*
+    cprintf("AUAICN\n");
+    cprintf("0x%x\n",p);
+    cprintf("pid(%d) state(%d) share(%d)\n",p->pid,p->state,p->share);
+    */
+    if(p->share == 0){
+      
+      acquire(&tickslock);
+      total_ticks++;
+      release(&tickslock);
+      /*
+      acquire(&tickslock);
+      total_ticks++;
+      ticks++;
+      wakeup(&ticks);
+      release(&tickslock);
+      */
+
+      // not have idea what below 1 line represents but..
+      // needed or need not ?
+      //lapiceoi();
+      if(p -> start_tick + time_quantom[p->lev] <= total_ticks){
+        // time to be changed.
+        // yield  implemented below 
+        //        not explicitly call here.
+        // start_tick   has changed in proc.c:scheduler()
+        //              right before context switch is applied.
+        if(p->lev==2)
+          return;
+            //do nothing
+        else{
+          p->age--;
+          if(p->age);
+          else{
+            p -> lev++;
+            p -> age = 5;
+          }
+        } 
+      }else
+        return;
+      // time quantom guaranteed here
+      // yield is similar to "IO bound jobs" compared to "compute jobs"
+      // should guarantee it's execution more.
+      // just return
+    }
     yield();
+  } 
+  
 
   // Check if the process has been killed since we yielded
-  if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
+  if(myproc() 
+    && myproc()->killed 
+    && (tf->cs&3) == DPL_USER)
     exit();
 }

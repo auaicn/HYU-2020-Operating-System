@@ -50,10 +50,14 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
+  //  MLFQ   SCHEDULING
+  uint start_tick;
+  int age;
   int lev;
+
+  //  STRIDE SCHEDULING
   int share;
   int pass;
-  int age;
 
 };
 

@@ -33,8 +33,8 @@ main(int argc, char *argv[])
     exit();
   }
 
-  int pid_stride = getpid();
-  //printf(1,"pid(%d) cpu_setted\n",pid_stride);
+  // int pid_stride = getpid();
+  // printf(1,"pid(%d) cpu_setted\n",pid_stride);
   // Get start time
   start_tick = uptime();
 
@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 
       // Get current time
       curr_tick = uptime();
-
+      //printf(1,"pid(%d) difference : %d\n",pid_stride,curr_tick - start_tick);
       if (curr_tick - start_tick > LIFETIME) {
         // Terminate process
         printf(1, "STRIDE(%d%%), cnt: %d\n", cpu_share, cnt);

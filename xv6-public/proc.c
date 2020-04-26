@@ -187,6 +187,7 @@ found:
   // for STRIDE scheduling
   p->share = 0;
   p->pass = 0;
+  p->start_tick = ticks;
 
   cprintf("pid(%d) pass(%d) share(%d)\n",p->pid,p->pass,p->share);
 
@@ -408,7 +409,7 @@ boost (void)
     ptable.proc[i].lev = 0;
     ptable.proc[i].age = 5;
   }
-  total_ticks = 0;
+  //total_ticks = 0;
 }
 
 // to save
@@ -478,7 +479,7 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    if(total_ticks==100)
+    if(total_ticks % 10000 == 0)
       boost();
 
     min_index = 0;
@@ -490,6 +491,7 @@ scheduler(void)
       }
     }
 
+    // even MLFQ's pass has to be added.
     p = stable.proc[min_index];
     p->pass += MULTSTRIDESHARE / p->share;
     min_pass = p->pass;
@@ -507,6 +509,10 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+
+      // start_tick is used for MLFQ but not matters 
+      // even if we include it to STRIDE
+      p->start_tick = total_ticks;
 
       c->proc = p;
       switchuvm(p);
