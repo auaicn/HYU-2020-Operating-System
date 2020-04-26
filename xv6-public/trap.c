@@ -117,6 +117,13 @@ trap(struct trapframe *tf)
       total_ticks++;
       release(&tickslock);
 
+      /*
+      cprintf("pid[%d] lev[%d] ",p->pid,p->lev);
+      for(int i=0;i<p->age;i++)
+        cprintf("*");
+      cprintf("\n");
+      */
+      
       if(p -> start_tick + time_quantom[p->lev] > total_ticks){
         // time quantom guaranteed here
         // yield is similar to "IO bound jobs" compared to "compute jobs"

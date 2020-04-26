@@ -39,14 +39,12 @@ int min_pass;
 void
 queue_table_lookup(void)
 {
-  acquire(&ptable.lock);
   for (int i=0;i<DEPTH_QUEUE;i++){
     cprintf("[LEV%d]SIZE[%d] : ",i ,ptable.q_size[i]+1);
     for (int j=0;j<=ptable.q_size[i];j++)
       cprintf("%d[%d] ",ptable.ARRAYQUEUE[i][j]->pid,ptable.ARRAYQUEUE[i][j]->state);
     cprintf("\n");
   }
-  release(&ptable.lock);
 }
 
 void 
@@ -84,7 +82,7 @@ set_cpu_share(int share)
   acquire(&ptable.lock);
   struct proc* p= myproc();
 
-  stable.proc[stable.stable_size++] = p;
+  stable.proc[++stable.stable_size] = p;
   
   mlfq->share -= share;
   p->share = share;
@@ -217,7 +215,7 @@ found:
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
   release(&ptable.lock);
 
-  // cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
+  cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
   // queue_table_lookup();
 
   return p;
@@ -234,6 +232,7 @@ userinit(void)
   // again implement just queue, not by linked list
   for (int i = 0; i < DEPTH_QUEUE; i++)
     ptable.q_size[i] = -1;
+  stable.stable_size = -1;
 
   // pid 1 process
   p = allocproc();
@@ -330,7 +329,7 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-  //cprintf("fork success\n");
+  cprintf("fork success pid[%d]\n",np->pid);
   return pid;
 }
 
@@ -373,32 +372,42 @@ exit(void)
         wakeup1(initproc);
     }
   }
-
+  
   struct proc* t;
-  if(p->share == 0){
-    // was in mlfq
-    for (int i=0;i<=ptable.q_size[p->lev];i++){
-      t = ptable.ARRAYQUEUE[p->lev][i];
-      if(t==p){
-        for (int j=i;j<ptable.q_size[p->lev];j++)
-          ptable.ARRAYQUEUE[p->lev][j] = ptable.ARRAYQUEUE[p->lev][j+1];
-        ptable.q_size[p->lev]--;
+  if(curproc -> share == 0){
+
+    // MLFQ scheduled process exits
+    for (int i=0;i<=ptable.q_size[curproc->lev];i++){
+
+      t = ptable.ARRAYQUEUE[curproc->lev][i];
+      if(t == curproc){
+        ptable.q_size[curproc->lev]--;
+        for (int j=i;j<=ptable.q_size[curproc->lev];j++)
+          ptable.ARRAYQUEUE[curproc->lev][j] = ptable.ARRAYQUEUE[curproc->lev][j+1];
+        
+        ptable.q_size[curproc->lev]--;
         break;
       }
+
     }
   }else{
-    // once in STRIDE
-    for (int i=0;i<stable.stable_size;i++){
+
+    // STRIDE scheduled process exits
+    for (int i=0;i<=stable.stable_size;i++){
+
       t = stable.proc[i];
-      if(p==t){
-        for (int j=i;j<stable.stable_size-1;j++){
-          stable.proc[j] = stable.proc[j+1];
-        }
+      if(t == curproc){
         stable.stable_size--;
+        for (int j=i;j<=stable.stable_size;j++)
+          stable.proc[j] = stable.proc[j+1];
+        
         break;
       }
+
     }
+    stable.proc[0]->share += curproc->share;
   }
+  //queue_table_lookup();
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
@@ -461,9 +470,9 @@ wait(void)
 void 
 boost (void)
 {
+  //cprintf("[boosting]\n");
   for (int i=0;i<NPROC;i++)
   {
-    //cprintf("[boosting]\n");
     if(ptable.proc[i].pid == 0)
       break;
     ptable.proc[i].lev = 0;
@@ -485,7 +494,7 @@ scheduler(void)
   mlfq.pass = 0;
   mlfq.pid = 85064538;
   mlfq.state = RUNNABLE;
-  stable.proc[stable.stable_size++] = &mlfq;
+  stable.proc[++stable.stable_size] = &mlfq;
   
   // preven memory leakage
   int i,j;
@@ -501,7 +510,7 @@ scheduler(void)
   // using only one array with lev0 comes first and then lev1 lev 2 processes
   // ptable_lookup();
 
-  ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = &ptable.proc[0];
+  // ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = &ptable.proc[0];
   
   // sh not set yet. pass role to allocproc
   // ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = &ptable.proc[1];
@@ -518,10 +527,11 @@ scheduler(void)
 
     if(total_ticks % PERIOD_BOOSTING == 0){
       boost();
+      //queue_table_lookup();
     }
 
     min_index = 0;
-    for (i = 0; i < stable.stable_size; i++ ){
+    for (i = 0; i <= stable.stable_size; i++ ){
       if(stable.proc[i]->state != RUNNABLE)
         continue;
       if(stable.proc[i] -> pass < stable.proc[min_index] -> pass){
@@ -547,7 +557,6 @@ scheduler(void)
           if(p->share)
             continue;
           found = 1;
-          //cprintf("found pid(%d)\n",p->pid);
           break;
         }
         if(found)
@@ -558,11 +567,13 @@ scheduler(void)
     if(p->state==RUNNABLE){
 
       /*
-      if(min_index)
+      if(p->share)
         cprintf("STRIDE\n");
       else
         cprintf("MLFQ\n");
       */
+      //cprintf("%d\n",p->pid);
+
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -631,23 +642,24 @@ yield(void)
   if(p->from_trap){
     p->from_trap = 0;
 
-    if(p->age == 5){
+    int lev_pre = p->lev;
+    int lev_now = p->lev;
 
-      //dequeue
-      for (int i=0;i<=ptable.q_size[p->lev-1];i++){
-        if(ptable.ARRAYQUEUE[p->lev-1][i] == p){
-          cprintf("FOUND\n");
-          ptable.q_size[p->lev-1]--;
-          for (int j=i;j<ptable.q_size[p->lev-1];j++){
-            ptable.ARRAYQUEUE[p->lev-1][j] = ptable.ARRAYQUEUE[p->lev-1][j+1];
+    if(p->age == 5)
+      lev_pre--;
+    //dequeue in lev[lev_pre]
+    for (int i=0;i<=ptable.q_size[lev_pre];i++){
+        if(ptable.ARRAYQUEUE[lev_pre][i] == p){
+          //cprintf("FOUND\n");
+          ptable.q_size[lev_pre]--;
+          for (int j=i;j<=ptable.q_size[lev_pre];j++){
+            ptable.ARRAYQUEUE[lev_pre][j] = ptable.ARRAYQUEUE[lev_pre][j+1];
           }
         }
-      }
-
-      //enqueue
-      ptable.ARRAYQUEUE[p->lev][++ptable.q_size[p->lev]] = p;
-
     }
+    //enqueue in lev[lev_now]
+    ptable.ARRAYQUEUE[lev_now][++ptable.q_size[lev_now]] = p;
+
   }
 
   sched();

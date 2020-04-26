@@ -47,6 +47,7 @@ main(int argc, char *argv[])
     }
   }
   
+  printf(1,"SLEEP FOR NOW\n");
   for (i = 0; i < CNT_CHILD; i++) {
     wait();
   }
