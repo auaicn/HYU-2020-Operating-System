@@ -10,9 +10,9 @@
 //below is my implementation
 
 int
-sys_ptable_lookup(void)
+sys_queue_table_lookup(void)
 {
-  ptable_lookup();
+  queue_table_lookup();
   return 0; //success
 }
 

@@ -36,7 +36,7 @@ idtinit(void)
 }
 
 //PAGEBREAK: 41
-void
+void 
 trap(struct trapframe *tf)
 {
   if(tf->trapno == T_SYSCALL){
@@ -112,18 +112,10 @@ trap(struct trapframe *tf)
     struct proc* p = myproc();
     
     if(p->share == 0){
-      //cprintf("MLFQ\n");
       acquire(&tickslock);
       total_ticks++;
       release(&tickslock);
 
-      /*
-      cprintf("pid[%d] lev[%d] ",p->pid,p->lev);
-      for(int i=0;i<p->age;i++)
-        cprintf("*");
-      cprintf("\n");
-      */
-      
       if(p -> start_tick + time_quantom[p->lev] > total_ticks){
         // time quantom guaranteed here
         // yield is similar to "IO bound jobs" compared to "compute jobs"
@@ -150,9 +142,7 @@ trap(struct trapframe *tf)
 
       }
     }else
-      //cprintf("STRIDE? pid(%d)\n",p->pid);
 
-    //cprintf("%d %d lev[%d] age[%d] in tick[%d]\n",p->pid,p->start_tick,p->lev,p->age,total_ticks);
     p->from_trap = 1;
     yield();
   }

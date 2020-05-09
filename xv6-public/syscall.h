@@ -25,4 +25,4 @@
 #define SYS_myfunction 24
 #define SYS_getppid 25
 #define SYS_yield 26
-#define SYS_ptable_lookup 27
+#define SYS_queue_table_lookup 27

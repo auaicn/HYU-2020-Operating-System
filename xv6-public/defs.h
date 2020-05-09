@@ -11,7 +11,7 @@ struct stat;
 struct superblock;
 
 // ptable_lookup.c
-void 			ptable_lookup(void);
+void 			queue_table_lookup(void);
 
 // prac_suscall.c
 int 			printk_str(char*);

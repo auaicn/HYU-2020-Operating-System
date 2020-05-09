@@ -9,7 +9,7 @@
 
 #define MULTSTRIDESHARE (1000)
 #define DEPTH_QUEUE   (3)
-#define PERIOD_BOOSTING (100)
+#define PERIOD_BOOSTING (200)
 
 struct {
   struct spinlock lock;
@@ -45,17 +45,6 @@ queue_table_lookup(void)
       cprintf("%d[%d] ",ptable.ARRAYQUEUE[i][j]->pid,ptable.ARRAYQUEUE[i][j]->state);
     cprintf("\n");
   }
-}
-
-void 
-ptable_lookup(void)
-{
-  queue_table_lookup();
-  /*
-  cprintf("  %s   %s %s %s %s\n","pid","state","level","share","type");
-  for (struct proc * p = &ptable.proc[0]; p->pid!=0;p++)
-    cprintf("  %d     %d     %d     %d     %s\n",p->pid,p->state,p->lev,p->share,p->share==0?"mlfq":"stride");
-  */
 }
 
 int min(int x,int y){
@@ -374,7 +363,6 @@ exit(void)
   
   struct proc* t;
   if(curproc -> share == 0){
-    //cprintf("MLFQ EXIT\n");
 
     // MLFQ scheduled process exits
     for (int i=0;i<=ptable.q_size[curproc->lev];i++){
@@ -499,34 +487,16 @@ scheduler(void)
   int i,j;
   int min_index;
 
-  // interrupt can be occur but no matters 
-  // since no further proceeses for now
-
-
-  // -1 : empty
-  // X >= 0 then 0 to X is filled
-
-  // using only one array with lev0 comes first and then lev1 lev 2 processes
-  // ptable_lookup();
-
-  // ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = &ptable.proc[0];
-  
-  // sh not set yet. pass role to allocproc
-  // ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = &ptable.proc[1];
-
-  //cprintf("INITIAL Q TABLE");
-  //queue_table_lookup();
-
   for(;;){
+
     // Enable interrupts on this processor.
     sti();
-    //cprintf("[total_tick] %d\n",total_ticks);
-    // Loop over process table looking for process to run.
+
     acquire(&ptable.lock);
 
+    // Starvation
     if(total_ticks % PERIOD_BOOSTING == 0){
       boost();
-      //queue_table_lookup();
     }
 
     min_index = 0;
@@ -545,9 +515,8 @@ scheduler(void)
 
     int found = 0;
     if(min_index == 0){
+
       // MLFQ scheduling
-      //for(p = &ptable.proc[NPROC];p!=ptable.proc;p--){
-      //for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       for(i = 0; i < DEPTH_QUEUE; i++){
         for (j = 0; j <= ptable.q_size[i]; j++){
           p = ptable.ARRAYQUEUE[i][j];
@@ -564,14 +533,6 @@ scheduler(void)
     }
 
     if(p->state==RUNNABLE){
-
-      /*
-      if(p->share)
-        cprintf("STRIDE\n");
-      else
-        cprintf("MLFQ\n");
-      */
-      //cprintf("%d\n",p->pid);
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
