@@ -15,7 +15,8 @@ struct spinlock tickslock;
 uint ticks;
 uint total_ticks;
 
-int time_quantom[3] = {1,2,4};
+int time_quantom[3] = {5,10,20};
+int time_allotment[3] = {20,40,0};
 
 void
 tvinit(void)

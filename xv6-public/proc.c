@@ -209,6 +209,9 @@ found:
   p->pass = 0;
   p->start_tick = ticks;
 
+  p->num_thread = 1;
+
+
   acquire(&ptable.lock);
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
   release(&ptable.lock);

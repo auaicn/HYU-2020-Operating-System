@@ -64,6 +64,10 @@ struct proc {
   int share;
   int pass;
 
+  // LIGHT WEIGHT PROCESS
+
+  int num_thread;
+  sturct thread_t thread_table[NTHREAD];
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -71,3 +75,14 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+
+struct thread_t {
+  uint tid;
+  int pid;
+  struct proc *master_thread;
+  enum threadstate state;        // Process state
+  void* chan;
+  int killed;
+  char *kstack;                // Bottom of kernel stack for this process
+
+}
