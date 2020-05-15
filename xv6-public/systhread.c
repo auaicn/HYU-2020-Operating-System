@@ -2,7 +2,6 @@
 #include "defs.h"
 #include "thread.h"
 
-// thread.c
 int 
 sys_thread_create(void)
 {
@@ -10,33 +9,34 @@ sys_thread_create(void)
   void* (*start_rountine_)(void*);
   void *arg_;
 
-  if(argint(0, &thread_) < 0          ||
-    argint(1, &start_rountine_) < 0   ||
-    argint(2, &arg_) < 0)
+  if(argptr(0, (void*)&thread_,sizeof(*thread_)) < 0          ||
+    argptr(1, (void*)&start_rountine_,sizeof(*start_rountine_)) < 0   ||
+    argptr(2, (void*)&arg_,sizeof(*arg_)) < 0)
     return -1;
 
-  return sys_thread_create(thread_t *thread_, void* (*start_rountine_)(void*), void *arg_);
+  return thread_create(thread_, start_rountine_, arg_);
 }
 
-void 
+int 
 sys_thread_exit(void)
 {
   void *retval_;
-  if(argint(0, &retval_) < 0)
+  if(argint(0, (int*)&retval_) < 0)
     return -1;
 
-  return sys_thread_exit(void *retval_);
+  thread_exit(retval_);
+  return 0;
 }
 
 int
-sys_thread_join(thread_t thread, void **retval)
+sys_thread_join(void)
 {
- 	struct thread_t thread_;
+ 	thread_t thread_;
   void **retval_;
 
-  if(argint(0, &thread_) < 0
-    ||argint(1, &retval_) < 0)
+  if(argint(0, (int*)&thread_) < 0
+    ||argint(1, (int*)&retval_) < 0)
     return -1;
 
-  return sys_thread_join(thread_t thread_, void **retval_);
+  return thread_join(thread_, retval_);
 }
