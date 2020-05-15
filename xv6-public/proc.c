@@ -171,9 +171,18 @@ found:
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+
+    // allocation failed. 
+    // due to empty free list in kernel memory
     p->state = UNUSED;
+    
+    // fail return
     return 0;
   }
+
+  // Q. why not using exact p->kstack value?
+  // A. free list maintains, low value.
+  //    so go the high value again.
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame.

@@ -36,8 +36,9 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
+  
+  uint sz;                     // Size of process memory (bytes)
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
   int pid;                     // Process ID
@@ -48,6 +49,8 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
+
+  // Debugging
   char name[16];               // Process name (debugging)
 
   //  MLFQ   SCHEDULING
