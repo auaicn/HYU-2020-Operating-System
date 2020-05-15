@@ -26,3 +26,6 @@
 #define SYS_getppid 25
 #define SYS_yield 26
 #define SYS_queue_table_lookup 27
+#define SYS_thread_create 28
+#define SYS_thread_exit 29
+#define SYS_thread_join 30

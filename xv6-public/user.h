@@ -32,6 +32,11 @@ int getppid(void);
 int yield(void);
 int queue_table_lookup(void);
 
+// thread.c
+int thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg);
+void thread_exit(void *retval);
+int thread_join(thread_t thread, void **retval);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);

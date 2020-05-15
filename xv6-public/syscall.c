@@ -111,6 +111,11 @@ extern int sys_myfunction(void);
 extern int sys_getppid(void);
 extern int sys_queue_table_lookup(void);
 
+extern int sys_thread_create(void);
+extern int sys_thread_exit(void);
+extern int sys_thread_join(void);
+
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -140,6 +145,11 @@ static int (*syscalls[])(void) = {
 [SYS_myfunction]	sys_myfunction,
 [SYS_getppid]	sys_getppid,
 [SYS_queue_table_lookup]  sys_queue_table_lookup,
+
+[sys_thread_create] sys_thread_create,
+[sys_thread_exit] sys_thread_exit,
+[sys_thread_join] sys_thread_join,
+
 };
 
 
