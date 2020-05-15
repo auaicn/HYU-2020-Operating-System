@@ -1,5 +1,5 @@
-struct thread_t {
-	uint tid;
-	proc
+typedef uint thread_t;
 
-}
+struct thread{
+	thread_t tid;
+};

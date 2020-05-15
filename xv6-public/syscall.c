@@ -146,9 +146,9 @@ static int (*syscalls[])(void) = {
 [SYS_getppid]	sys_getppid,
 [SYS_queue_table_lookup]  sys_queue_table_lookup,
 
-[sys_thread_create] sys_thread_create,
-[sys_thread_exit] sys_thread_exit,
-[sys_thread_join] sys_thread_join,
+[SYS_thread_create] sys_thread_create,
+[SYS_thread_exit] sys_thread_exit,
+[SYS_thread_join] sys_thread_join,
 
 };
 

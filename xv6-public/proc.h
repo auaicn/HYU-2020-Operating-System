@@ -32,6 +32,8 @@ struct context {
   uint eip;
 };
 
+#include "thread.h"
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -65,9 +67,10 @@ struct proc {
   int pass;
 
   // LIGHT WEIGHT PROCESS
-
+  int multi_thread;
   int num_thread;
-  sturct thread_t thread_table[NTHREAD];
+  struct thread threads[NPROC];
+
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -76,13 +79,3 @@ struct proc {
 //   fixed-size stack
 //   expandable heap
 
-struct thread_t {
-  uint tid;
-  int pid;
-  struct proc *master_thread;
-  enum threadstate state;        // Process state
-  void* chan;
-  int killed;
-  char *kstack;                // Bottom of kernel stack for this process
-
-}
