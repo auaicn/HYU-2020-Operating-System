@@ -21,7 +21,6 @@ struct {
 
 struct {
   struct proc* proc[NPROC]; // min-heap implemented
-  //struct spinlock lock;
   int stable_size;
 } stable;
 
@@ -33,8 +32,6 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 int min_pass;
-
-// my implement
 
 void
 queue_table_lookup(void)
