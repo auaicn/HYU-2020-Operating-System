@@ -192,7 +192,8 @@ UPROGS=\
 	_test_mlfq\
 	_test_stride\
 	_test_master\
-	_queue_table_lookup\
+	_qtable_lookup\
+	_ml_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -265,7 +266,7 @@ EXTRA=\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c test_yield_implemented.c\
-	test_mlfq.c test_stride.c test_master.c qtable_lookup.c\
+	test_mlfq.c test_stride.c test_master.c qtable_lookup.c ml_test.c\
 
 dist:
 	rm -rf dist
