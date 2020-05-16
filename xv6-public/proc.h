@@ -72,7 +72,6 @@ struct proc {
   uint start_tick;
   int lev;
   int time_allotment;
-  int from_trap;
 
   //  STRIDE SCHEDULING
   int share;

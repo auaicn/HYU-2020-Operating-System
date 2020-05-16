@@ -61,6 +61,7 @@ int thread_mutex_init(struct thread_mutex_t* mutex_structure, char* name){
   initlock(&(myproc()->thread[0]->lock),"thread");
   return 0;
 };
+
 */
 
 thread*
@@ -71,49 +72,48 @@ allocthread(void* (*start_rountine)(void*))
 
   acquire(&ptable.lock);
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  for(p = NPROC-1;p>nextpid;p--){
     if(p->state == UNUSED)
       goto found;
-
+  }
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
-  p->pid = -1;
+  p->pid = -1; // thread representation.
 
   release(&ptable.lock);
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
-
     p->state = UNUSED;
-    
-    // fail return
     return 0;
   }
 
-  // Q. why not using exact p->kstack value?
-  // A. free list maintains, low value.
-  //    so go the high value again.
   sp = p->kstack + KSTACKSIZE;
 
-  // Leave room for trap frame. type casting.
-  //struct trapframe *tf;      
-
+  // TRAPFRAME setting
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
+  *new_thread->tf = *curproc->tf;
+  p->tf->eip = (uint)start_rountine;
 
   // Set up new context to start executing at forkret,
   // which returns to trapret.
   sp -= 4;
   *(uint*)sp = (uint)trapret;
 
-  // struct context *context;     // swtch() here to run process
+  // struct context *context;     
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
-  p->context->eip = (uint)start_rountine;
+
+  // need flow to release ptable lock.
+  // forkret does.
+  // afther newly made thread scheduled for the first time.
+  // awkward flow I know..
+  p->context->eip = (uint)forkret;
 
   acquire(&ptable.lock);
   p->threads[++(p->num_thread)] = p;
@@ -131,6 +131,7 @@ int
 thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 {
   struct proc* p;
+  char* sp;
   struct proc* new_thread;
   //thread* new_thread = NULL;
 
@@ -145,62 +146,43 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 
   new_thread -> pid = -1;
   new_thread -> tid = ++(p -> num_thread);
-
-  new_thread -> context -> eip = (int)start_rountine;
-
-  // is it right?
-  // maybe to userstack..
-  new_thread -> sp -= sizeof(arg);
-  safestrcpy(arg,sp,sizeof(sp));
-  new_thread -> sp += sizeof(arg);
-
-
-  //pde_t* pgdir;                // Page table
-  new_thread -> pgdir = p -> pgdir;
-  
-  // void *chan;                  // If non-zero, sleeping on chan
-  new_thread -> chan = 0;
-  
-  // int killed;                  // If non-zero, have been killed
-  new_thread -> killed = 0;
-
-  // struct inode *cwd;           // Current directory
-  curproc -> cwd = p ->cwd;
-
-  // FORK
-  // uint sz;                     // Size of process memory (bytes)
-  new_thread->sz = curproc->sz;
-  
-  // struct proc *parent;         // Parent process
   new_thread->parent = curproc;
-  
-  // Seriously?
-  // struct trapframe *tf;        // Trap frame for current syscall
-  *new_thread->tf = *curproc->tf;
 
-  // Clear %eax so that fork returns 0 in the child.
-  new_thread->tf->eax = 0;
+  new_thread -> pgdir = p -> pgdir;
+  new_thread -> chan = 0;
+  new_thread -> killed = 0;
+  curproc -> cwd = p ->cwd;
+  new_thread->sz = curproc ->sz;
 
-  // struct file *ofile[NOFILE];  // Open files
+  // context and trapfram handling is done at allocthread call
+  //*new_thread->tf = *curproc->tf;
+  // new_thread -> context -> eip = (int)start_rountine;
+  // new_thread->tf->eax = 0; 
+  // only for fork representation
+  // now need not
+
+  new_thread -> sz = curproc-> sz + 2 * PGSIZE;
+  new_thread -> sz -= 8;
+  *(int*)(new_thread->sz) = *(int*)arg[0];
+  new_thread -> sz += 4;
+  *(int*)(new_thread->sz) = *(int*)trapret;
+  new_thread -> sz += 4;
+
+
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       new_thread->ofile[i] = filedup(curproc->ofile[i]);
   new_thread->cwd = idup(curproc->cwd);
 
-    // char name[16];               // Process name (debugging)
-  safestrcpy(new_thread->name, curproc->name, sizeof(curproc->name));
-
-  // to return in fork but doesnt need here. pid = new_thread->pid;
+  // has same name
+  char thread_name[13] = "THREAD[Name]"; int size_thread_name = 13;
+  safestrcpy(new_thread->name, thread_name, size_thread_name);
 
   acquire(&ptable.lock);
-
-  // enum procstate state;
   new_thread->state = RUNNABLE;
-
   release(&ptable.lock);
-  // FORK
 
-  return 0;
+  return 0; // success
 }
 
 void 
@@ -380,14 +362,8 @@ found:
 
   release(&ptable.lock);
 
-  // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
-
-    // allocation failed. 
-    // due to empty free list in kernel memory
     p->state = UNUSED;
-    
-    // fail return
     return 0;
   }
 
@@ -407,11 +383,6 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-
-
-
-
-
   // LWP
   p -> multi_threaded = 0; // false initially
 
@@ -419,8 +390,6 @@ found:
   p -> lev = INITIAL_LEV;
   p -> time_allotment = time_allotment[INITIAL_LEV];
   p -> start_tick = ticks;
-
-  p -> from_trap = 0;
 
   // for STRIDE scheduling
   p -> share = 0;
