@@ -10,18 +10,6 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-// thread.c
-int thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg);
-void thread_exit(void *retval);
-int thread_join(thread_t thread, void **retval);
-
-// queue_table_lookup.c
-void 			queue_table_lookup(void);
-
-// prac_suscall.c
-int 			printk_str(char*);
-int 			getppid(void);
-
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -131,10 +119,7 @@ void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
-
 void            yield(void);
-int				getlev(void);
-int 			set_cpu_share(int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -176,14 +161,9 @@ void            timerinit(void);
 
 // trap.c
 void            idtinit(void);
+extern uint     ticks;
 void            tvinit(void);
 extern struct spinlock tickslock;
-
-// trap.c my implementation
-extern uint     ticks;
-extern uint 	total_ticks;
-extern int time_quantom[3];
-extern int time_allotment[3];
 
 // uart.c
 void            uartinit(void);

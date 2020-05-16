@@ -32,23 +32,15 @@ struct context {
   uint eip;
 };
 
-// JUST added
-typedef int pid_t;
-
-// FOR reusing proc structure
-typedef int thread_t;
-typedef proc thread;
-typedef procstate threadstate;
-
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-  pde_t* pgdir;                // Page table
-  
   uint sz;                     // Size of process memory (bytes)
+  pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
+  int pid;                     // Process ID
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
@@ -56,32 +48,7 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
-
-  // Debugging
   char name[16];               // Process name (debugging)
-
-  //  MLFQ   SCHEDULING
-  uint start_tick;
-  int age;
-  int lev;
-  int from_trap;
-
-  //  STRIDE SCHEDULING
-  int share;
-  int pass;
-
-  // CLASSIFIER
-  // 0 : Single Thread Process
-  // 1 : Master Thread
-  // 2 : Threads
-  int classifier;
-
-  // PROCESS
-  int pid;    
-
-  // LIGHT WEIGHT PROCESS
-  int tid;
-  struct thread threads[NTHREAD];
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -89,4 +56,3 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
-

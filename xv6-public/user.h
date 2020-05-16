@@ -24,19 +24,6 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
-//below is mine
-int set_cpu_share(int);
-int getlev(void);
-int myfunction(char*);
-int getppid(void);
-int yield(void);
-int queue_table_lookup(void);
-
-// thread.c
-int thread_create(int *thread, void* (*start_rountine)(void*), void *arg);
-void thread_exit(void *retval);
-int thread_join(int thread, void **retval);
-
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
