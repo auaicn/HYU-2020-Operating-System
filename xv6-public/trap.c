@@ -12,6 +12,7 @@
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
+
 uint ticks;
 uint MLFQ_ticks;
 
@@ -28,9 +29,7 @@ uint MLFQ_ticks;
 #endif
 
 int time_quantom[10] = {5,10,20};
-int time_allotment[3] = {20,40,0};
-
-time_quantom[STRIDE_LEV] = STRIDE_DEFAULT_TIME_QUANTOM;
+int time_allotment[10] = {20,40,0};
 
 void
 tvinit(void)
@@ -169,27 +168,26 @@ trap(struct trapframe *tf)
 
         // Switching between LWPS
         struct proc* pp = p->parent;
-        struct thread* nt;
+        thread* nt = NULL;
 
         // Just Lookaside is OK?
-        acquire(&ptable.lock);
+       //acquire(&ptable.lock);
 
         for (int i=1;i<=pp->num_thread;i++){
 
-          int idx = (p->tid+i)%num_thread+1;
-          cprintf("[%d/%d]\n",idx,num_thread);
-          nt = pp->threads[(p->tid+i)%num_thread+1]
+          int idx = (p->tid+i)%pp->num_thread+1;
+          cprintf("[%d/%d]\n",idx,pp->num_thread);
+          nt = pp->threads[idx];
           
           if(nt->state!=RUNNABLE)
             continue;
-          else
-            break;
+          else{
+            p->state = RUNNABLE;
+            swtch(&p->context, nt->context);
+            return;
+          }
         }
-
-        release(&ptable.lock);
-        swtch(&p->context, nt->context);
-        // Switching done
-        return;
+        panic("thread to run not found");
 
       }else
         // Time Finished yield will do extra jobs

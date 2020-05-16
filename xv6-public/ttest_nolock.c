@@ -2,6 +2,10 @@
 #include "stat.h"
 #include "user.h"
 
+#ifndef NULL
+#define NULL		 ((void*)0)
+#endif
+
 #define NUM_THREAD (9)
 #define NUM_INCREASE (10000)
 
@@ -11,17 +15,19 @@ int ret_val[NUM_THREAD];
 
 void* increase(void* arg){
 	int* int_arg = (int*) arg;
-	printf("[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
+	//printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
+	printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
 
 	for (int i=0;i<int_arg[0];i++){
 		global_cnt++;
 	}
 
 	thread_exit(&int_arg[1]);
+	return NULL;
 }
 
 void my_error(const char* str){
-	printf("[ERROR] %s\n",str);
+	printf(1,"[ERROR] %s\n",str);
 }
 
 int main(int argc, char const *argv[])
@@ -30,7 +36,7 @@ int main(int argc, char const *argv[])
 	thread_t pid[10];
 	//thread_mutex_init(&my_lock,NULL);
 
-	printf("[%s Thread] pid[%d]\n","Master",getpid());
+	printf(1,"[%s Thread] pid[%d]\n","Master",getpid());
 
 	int arg[NUM_THREAD][2];
 	for (int i=0;i<NUM_THREAD;i++)
@@ -38,7 +44,7 @@ int main(int argc, char const *argv[])
 
 	for (int i = 0; i < NUM_THREAD; i++){
 		arg[i][1] = (i+1)*(i+1);
-		int ret = thread_create(&pid[i], NULL, &increase, (void*)arg[i]);
+		int ret = thread_create(&pid[i], &increase, (void*)arg[i]);
 		if(!ret)
 			continue;
 		else
@@ -46,14 +52,14 @@ int main(int argc, char const *argv[])
 	}
     int *ptr[NUM_THREAD];
 
-	void *ret_val[10];
+	//void *ret_val[10];
 	for (int i=0;i<NUM_THREAD;i++){
 	    thread_join(pid[i], (void**)&(ptr[i]));
 
-	    printf("\n return value from first thread is [%d]\n", *ptr[i]);
+	    printf(1,"\n return value from first thread is [%d]\n", *ptr[i]);
 	}
 
-	printf("%d\n",global_cnt);
+	printf(1,"%d\n",global_cnt);
 
 	return 0;
 }

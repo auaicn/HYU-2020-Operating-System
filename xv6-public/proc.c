@@ -480,7 +480,7 @@ boost (void)
     if(ptable.proc[i].pid == 0)
       break;
     ptable.proc[i].lev = 0;
-    ptable.proc[i].age = ;
+    ptable.proc[i].time_allotment = time_allotment[0];
   }
 }
 
@@ -649,7 +649,7 @@ yield(void)
     // its' level does not change.
   }
 
-  p -> time_allotment = time_quantom[p->lev];
+  p -> time_allotment = time_allotment[p->lev];
 
   sched();
   release(&ptable.lock);

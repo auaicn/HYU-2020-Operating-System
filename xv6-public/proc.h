@@ -18,7 +18,7 @@ extern int ncpu;
 // Don't need to save all the segment registers (%cs, etc),
 // because they are constant across kernel contexts.
 // Don't need to save %eax, %ecx, %edx, because the
-// x86 convention is that the caller has saved them.
+// x86 convention is tha tthe caller has saved them.
 // Contexts are stored at the bottom of the stack they
 // describe; the stack pointer is the address of the context.
 // The layout of the context matches the layout of the stack in swtch.S
@@ -35,10 +35,12 @@ struct context {
 // JUST added
 typedef int pid_t;
 
+struct proc;
+
 // FOR reusing proc structure
 typedef int thread_t;
-typedef proc thread;
-typedef procstate threadstate;
+typedef struct proc thread;
+typedef enum procstate threadstate;
 
 /*
 struct thread_mutex_t{
@@ -84,11 +86,12 @@ struct proc {
   int tid;
   int num_thread;
   // Master thread would be index 0
-  struct thread* threads[NTHREAD];
+  thread* threads[NTHREAD];
   // For master thread
-  struct spinlock lock; 
+  // struct spinlock lock; 
 
 };
+
 
 // Process memory is laid out contiguously, low addresses first:
 //   text

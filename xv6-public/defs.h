@@ -143,6 +143,7 @@ int 			set_cpu_share(int);
 void            swtch(struct context**, struct context*);
 
 // spinlock.c
+// extern struct spinlock;
 void            acquire(struct spinlock*);
 void            getcallerpcs(void*, uint*);
 int             holding(struct spinlock*);
@@ -185,8 +186,8 @@ extern struct spinlock tickslock;
 // trap.c my implementation
 extern uint     ticks;
 extern uint 	total_ticks;
-extern int time_quantom[3];
-extern int time_allotment[3];
+extern int time_quantom[10];
+extern int time_allotment[10];
 
 // uart.c
 void            uartinit(void);
