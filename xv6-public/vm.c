@@ -329,9 +329,16 @@ copyuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
+
+    // kalloc get one free page.
     if((mem = kalloc()) == 0)
       goto bad;
+
+    // memmove (dest,src,size)
     memmove(mem, (char*)P2V(pa), PGSIZE);
+
+    // add to mapping table
+    // mappages(kernel_page, page_number(user_size can be big), size, real_address, flag)
     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
       kfree(mem);
       goto bad;

@@ -86,11 +86,14 @@ kalloc(void)
 
   if(kmem.use_lock)
     acquire(&kmem.lock);
-  r = kmem.freelist;
+
+  // get first element of free-list
+  r = kmem.freelist; 
   if(r)
     kmem.freelist = r->next;
   if(kmem.use_lock)
     release(&kmem.lock);
+  //cprintf("kalloc called\n");
   return (char*)r;
 }
 

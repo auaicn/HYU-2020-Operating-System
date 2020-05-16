@@ -7,18 +7,97 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define MULTSTRIDESHARE (1000)
+#define DEPTH_QUEUE   (3)
+#define PERIOD_BOOSTING (200)
+#define DEFAULT_TIME_QUANTOM (5)
+#define INITIAL_LEV (0)
+
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct proc* ARRAYQUEUE[DEPTH_QUEUE][NPROC];
+  int q_size[DEPTH_QUEUE];
 } ptable;
+
+struct {
+  struct proc* proc[NPROC]; 
+  int stable_size;
+} stable;
 
 static struct proc *initproc;
 
 int nextpid = 1;
+
 extern void forkret(void);
 extern void trapret(void);
-
 static void wakeup1(void *chan);
+
+int min_pass;
+
+void
+queue_table_lookup(void)
+{
+  for (int i=0;i<DEPTH_QUEUE;i++){
+    cprintf("[LEV%d]SIZE[%d] : ",i ,ptable.q_size[i]+1);
+    for (int j=0;j<=ptable.q_size[i];j++)
+      cprintf("%d[%d] ",ptable.ARRAYQUEUE[i][j]->pid,ptable.ARRAYQUEUE[i][j]->state);
+    cprintf("\n");
+  }
+}
+
+int 
+min(int x,int y)
+{
+  return x<y?x:y;
+}
+
+int
+getlev(void)
+{
+  return myproc()->lev;
+}
+
+int
+set_cpu_share(int share)
+{
+
+  struct proc* mlfq = stable.proc[0];
+
+  if (mlfq->share - share < 20 || share < 0){
+    cprintf("proc.c:set_cpu_share:: unable to set cpu share\n");
+    return -1;
+  }
+
+  acquire(&ptable.lock);
+  struct proc* p= myproc();
+
+  stable.proc[++stable.stable_size] = p;
+  
+  mlfq->share -= share;
+  p->share = share;
+  p->pass = min_pass;
+
+  // dequeue from q
+  for (int i=0;i<=ptable.q_size[p->lev];i++){
+    if(p == ptable.ARRAYQUEUE[p->lev][i]){
+      ptable.q_size[p->lev]--;
+      for (int j=i;j<=ptable.q_size[p->lev];j++)
+        ptable.ARRAYQUEUE[p->lev][j] = ptable.ARRAYQUEUE[p->lev][j+1];
+      break;
+    }
+  }
+
+  // clear variables associated to MLFQ
+  p->lev = -1;
+  p->age = DEFAULT_TIME_QUANTOM;
+
+  release(&ptable.lock);
+  return 1;
+}
+
+// until here
 
 void
 pinit(void)
@@ -28,7 +107,8 @@ pinit(void)
 
 // Must be called with interrupts disabled
 int
-cpuid() {
+cpuid() 
+{
   return mycpu()-cpus;
 }
 
@@ -93,9 +173,18 @@ found:
 
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
+
+    // allocation failed. 
+    // due to empty free list in kernel memory
     p->state = UNUSED;
+    
+    // fail return
     return 0;
   }
+
+  // Q. why not using exact p->kstack value?
+  // A. free list maintains, low value.
+  //    so go the high value again.
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame.
@@ -112,6 +201,27 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
+  // for MLFQ scheduling
+  p -> lev = INITIAL_LEV;
+  p -> age = time_quantom[INITIAL_LEV];
+  p -> time_alloted = time_allotment[INITIAL_LEV];
+
+  p -> from_trap = 0;
+
+  // for STRIDE scheduling
+  p -> share = 0;
+  p -> pass = 0;
+  p -> start_tick = ticks;
+
+  p -> num_thread = 1;
+
+  acquire(&ptable.lock);
+  ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
+  release(&ptable.lock);
+
+  //cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
+  //queue_table_lookup();
+
   return p;
 }
 
@@ -123,8 +233,14 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
+  // again implement just queue, not by linked list
+  for (int i = 0; i < DEPTH_QUEUE; i++)
+    ptable.q_size[i] = -1;
+  stable.stable_size = -1;
+
+  // pid 1 process
   p = allocproc();
-  
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -217,7 +333,6 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&ptable.lock);
-
   return pid;
 }
 
@@ -260,6 +375,41 @@ exit(void)
         wakeup1(initproc);
     }
   }
+  
+  struct proc* t;
+  if(curproc -> share == 0){
+
+    // MLFQ scheduled process exits
+    for (int i=0;i<=ptable.q_size[curproc->lev];i++){
+
+      t = ptable.ARRAYQUEUE[curproc->lev][i];
+      if(t == curproc){
+        ptable.q_size[curproc->lev]--;
+        for (int j=i;j<=ptable.q_size[curproc->lev];j++)
+          ptable.ARRAYQUEUE[curproc->lev][j] = ptable.ARRAYQUEUE[curproc->lev][j+1];
+        
+        break;
+      }
+
+    }
+  }else{
+
+    // STRIDE scheduled process exits
+    for (int i=0;i<=stable.stable_size;i++){
+
+      t = stable.proc[i];
+      if(t == curproc){
+        stable.stable_size--;
+        for (int j=i;j<=stable.stable_size;j++)
+          stable.proc[j] = stable.proc[j+1];
+        
+        break;
+      }
+
+    }
+    stable.proc[0]->share += curproc->share;
+  }
+  //queue_table_lookup();
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
@@ -319,26 +469,94 @@ wait(void)
 //  - swtch to start running that process
 //  - eventually that process transfers control
 //      via swtch back to the scheduler.
+void 
+boost (void)
+{
+  //cprintf("[boosting]\n");
+  for (int i=0;i<NPROC;i++)
+  {
+    if(ptable.proc[i].pid == 0)
+      break;
+    ptable.proc[i].lev = 0;
+    ptable.proc[i].age = 5;
+  }
+}
+
 void
 scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+  // initialize STRIDE[0]
+
+  struct proc mlfq;
+  mlfq.share = 100;
+  mlfq.pass = 0;
+  mlfq.pid = 85064538;
+  mlfq.state = RUNNABLE;
+  stable.proc[++stable.stable_size] = &mlfq;
   
+  // preven memory leakage
+  int i,j;
+  int min_index;
+
   for(;;){
+
     // Enable interrupts on this processor.
     sti();
 
-    // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
+
+    // Starvation
+    if(total_ticks % PERIOD_BOOSTING == 0){
+      boost();
+    }
+
+    min_index = 0;
+    for (i = 0; i <= stable.stable_size; i++ ){
+      if(stable.proc[i]->state != RUNNABLE)
         continue;
+      if(stable.proc[i] -> pass < stable.proc[min_index] -> pass){
+        min_index = i;
+      }
+    }
+
+    // even MLFQ's pass has to be added.
+    p = stable.proc[min_index];
+    p->pass += MULTSTRIDESHARE / p->share;
+    min_pass = p->pass;
+
+    int found = 0;
+    if(min_index == 0){
+
+      // MLFQ scheduling
+      for(i = 0; i < DEPTH_QUEUE; i++){
+        for (j = 0; j <= ptable.q_size[i]; j++){
+          p = ptable.ARRAYQUEUE[i][j];
+          if(p->state != RUNNABLE)
+            continue;
+          if(p->share)
+            continue;
+          found = 1;
+          break;
+        }
+        if(found)
+          break;
+      }
+    }
+
+    if(p->state==RUNNABLE){
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
+
+      // start_tick is used for MLFQ but not matters 
+      // even if we include it to STRIDE
+      p->start_tick = total_ticks;
+
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
@@ -350,10 +568,12 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
-    release(&ptable.lock);
 
+
+    release(&ptable.lock);
   }
 }
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -387,6 +607,36 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   myproc()->state = RUNNABLE;
+  
+  // adjust queue here
+  // since p table cannot be accessed in trap.c
+  // but able in proc.c here
+  struct proc* p = myproc();
+
+  // check if it came from MLFQ
+  if(p->from_trap){
+    p->from_trap = 0;
+
+    int lev_pre = p->lev;
+    int lev_now = p->lev;
+
+    if(p->age == 5)
+      lev_pre--;
+    //dequeue in lev[lev_pre]
+    for (int i=0;i<=ptable.q_size[lev_pre];i++){
+        if(ptable.ARRAYQUEUE[lev_pre][i] == p){
+          //cprintf("FOUND\n");
+          ptable.q_size[lev_pre]--;
+          for (int j=i;j<=ptable.q_size[lev_pre];j++){
+            ptable.ARRAYQUEUE[lev_pre][j] = ptable.ARRAYQUEUE[lev_pre][j+1];
+          }
+        }
+    }
+    //enqueue in lev[lev_now]
+    ptable.ARRAYQUEUE[lev_now][++ptable.q_size[lev_now]] = p;
+
+  }
+
   sched();
   release(&ptable.lock);
 }
