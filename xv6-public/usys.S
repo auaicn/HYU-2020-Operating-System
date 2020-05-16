@@ -40,7 +40,3 @@ SYSCALL(thread_create)
 SYSCALL(thread_join)
 SYSCALL(thread_exit)
 
-#SYSCALL(thread_self)
-#SYSCALL(thread_mutext_lock)
-#SYSCALL(thread_mutext_unlock)
-#SYSCALL(thread_mutext_init)

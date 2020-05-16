@@ -7,7 +7,7 @@
 #endif
 
 #define NUM_THREAD (9)
-#define NUM_INCREASE (10000)
+#define NUM_INCREASE (1000000000)
 
 int global_cnt = 0;
 

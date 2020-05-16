@@ -756,7 +756,6 @@ scheduler(void)
     }
 
     if(p->state==RUNNABLE){
-       cprintf("FOUND\n");
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
