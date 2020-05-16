@@ -3,6 +3,30 @@
 #include "thread.h"
 
 int 
+sys_thread_self(void)
+{
+  return thread_self();
+}
+
+int 
+sys_thread_mutex_lock(void)
+{
+  return thread_mutex_lock;
+}
+
+int 
+sys_thread_mutex_unlock(void)
+{
+  return thread_mutex_unlock;
+}
+
+int 
+sys_thread_mutex_init(void)
+{
+  return thread_mutex_init;
+}
+
+int 
 sys_thread_create(void)
 {
   thread_t *thread_;

@@ -114,6 +114,10 @@ extern int sys_queue_table_lookup(void);
 extern int sys_thread_create(void);
 extern int sys_thread_exit(void);
 extern int sys_thread_join(void);
+extern int sys_thread_self(void);
+extern int sys_thread_mutex_lock(void);
+extern int sys_thread_mutex_unlock(void);
+extern int sys_thread_mutex_init(void);
 
 
 static int (*syscalls[])(void) = {
@@ -139,19 +143,19 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 
+[SYS_yield]   sys_yield,
 [SYS_set_cpu_share] sys_set_cpu_share,
 [SYS_getlev]  sys_getlev,
-[SYS_yield]   sys_yield,
-[SYS_myfunction]	sys_myfunction,
-[SYS_getppid]	sys_getppid,
+
 [SYS_queue_table_lookup]  sys_queue_table_lookup,
 
 [SYS_thread_create] sys_thread_create,
 [SYS_thread_exit] sys_thread_exit,
 [SYS_thread_join] sys_thread_join,
-
-};
-
+[SYS_thread_self] sys_thread_self,
+[SYS_thread_mutex_lock] sys_thread_mutex_lock,
+[SYS_thread_mutex_unlock] sys_thread_mutex_unlock,
+[SYS_thread_mutex_init] sys_thread_mutex_init,
 
 void
 syscall(void)

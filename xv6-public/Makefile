@@ -27,7 +27,6 @@ OBJS = \
 	uart.o\
 	vectors.o\
 	vm.o\
-	prac_syscall.o\
 	thread.o\
 	systhread.o\
 
@@ -187,15 +186,12 @@ UPROGS=\
 	_test_master\
 	_test_mlfq\
 	_test_stride\
-	_my_userapp\
-	_getppid_test\
-	_test_yield\
-	_test_yield_implemented\
 	_test_mlfq\
 	_test_stride\
 	_test_master\
 	_qtable_lookup\
 	_ml_test\
+	_thread_xv6\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -267,8 +263,9 @@ EXTRA=\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
-	.gdbinit.tmpl gdbutil my_userapp.c getppid_test.c test_yield.c test_yield_implemented.c\
+	.gdbinit.tmpl gdbutil \
 	test_mlfq.c test_stride.c test_master.c qtable_lookup.c ml_test.c\
+	thread_xv6.c\
 
 dist:
 	rm -rf dist

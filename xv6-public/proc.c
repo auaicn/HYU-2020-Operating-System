@@ -10,7 +10,7 @@
 #define MULTSTRIDESHARE (1000)
 #define DEPTH_QUEUE   (3)
 #define PERIOD_BOOSTING (200)
-#define DEFAULT_TIME_QUANTOM (5)
+#define STRIDE_DEFAULT_TIME_QUANTOM (5)
 #define INITIAL_LEV (0)
 
 
@@ -65,7 +65,7 @@ set_cpu_share(int share)
 
   struct proc* mlfq = stable.proc[0];
 
-  if (mlfq->share - share < 20 || share < 0){
+  if (mlfq -> share - share < 20 || share < 0){
     cprintf("proc.c:set_cpu_share:: unable to set cpu share\n");
     return -1;
   }
@@ -73,11 +73,14 @@ set_cpu_share(int share)
   acquire(&ptable.lock);
   struct proc* p= myproc();
 
+  if(p -> tid)
+    p = p -> parent;
+
   stable.proc[++stable.stable_size] = p;
   
-  mlfq->share -= share;
-  p->share = share;
-  p->pass = min_pass;
+  mlfq -> share -= share;
+  p -> share = share;
+  p -> pass = min_pass;
 
   // dequeue from q
   for (int i=0;i<=ptable.q_size[p->lev];i++){
@@ -91,7 +94,7 @@ set_cpu_share(int share)
 
   // clear variables associated to MLFQ
   p->lev = -1;
-  p->age = DEFAULT_TIME_QUANTOM;
+  p->time_allotment = STRIDE_DEFAULT_TIME_QUANTOM;
 
   release(&ptable.lock);
   return 1;
@@ -182,9 +185,6 @@ found:
     return 0;
   }
 
-  // Q. why not using exact p->kstack value?
-  // A. free list maintains, low value.
-  //    so go the high value again.
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame.
@@ -203,24 +203,18 @@ found:
 
   // for MLFQ scheduling
   p -> lev = INITIAL_LEV;
-  p -> age = time_quantom[INITIAL_LEV];
-  p -> time_alloted = time_allotment[INITIAL_LEV];
+  p -> time_allotment = time_allotment[INITIAL_LEV];
+  p -> start_tick = ticks;
 
   p -> from_trap = 0;
 
   // for STRIDE scheduling
   p -> share = 0;
   p -> pass = 0;
-  p -> start_tick = ticks;
-
-  p -> num_thread = 1;
 
   acquire(&ptable.lock);
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
   release(&ptable.lock);
-
-  //cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
-  //queue_table_lookup();
 
   return p;
 }
@@ -326,13 +320,17 @@ fork(void)
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
 
+  // to return
   pid = np->pid;
 
+  // MASTER thread
+  np -> num_thread = 0;
+  np -> tid = 0;
+
   acquire(&ptable.lock);
-
   np->state = RUNNABLE;
-
   release(&ptable.lock);
+
   return pid;
 }
 
@@ -478,7 +476,7 @@ boost (void)
     if(ptable.proc[i].pid == 0)
       break;
     ptable.proc[i].lev = 0;
-    ptable.proc[i].age = 5;
+    ptable.proc[i].age = ;
   }
 }
 
@@ -620,7 +618,7 @@ yield(void)
     int lev_pre = p->lev;
     int lev_now = p->lev;
 
-    if(p->age == 5)
+    if(p -> time_quantom /== 5)
       lev_pre--;
     //dequeue in lev[lev_pre]
     for (int i=0;i<=ptable.q_size[lev_pre];i++){

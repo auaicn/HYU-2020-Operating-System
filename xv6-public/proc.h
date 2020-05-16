@@ -40,6 +40,12 @@ typedef int thread_t;
 typedef proc thread;
 typedef procstate threadstate;
 
+/*
+struct thread_mutex_t{
+  struct spinlock lock;
+};
+*/
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
@@ -62,26 +68,25 @@ struct proc {
 
   //  MLFQ   SCHEDULING
   uint start_tick;
-  int age;
   int lev;
+  int time_allotment;
   int from_trap;
 
   //  STRIDE SCHEDULING
   int share;
   int pass;
 
-  // CLASSIFIER
-  // 0 : Single Thread Process
-  // 1 : Master Thread
-  // 2 : Threads
-  int classifier;
-
   // PROCESS
   int pid;    
 
   // LIGHT WEIGHT PROCESS
   int tid;
-  struct thread threads[NTHREAD];
+  int num_thread;
+  // Master thread would be index 0
+  struct thread* threads[NTHREAD];
+  // For master thread
+  struct spinlock lock; 
+
 };
 
 // Process memory is laid out contiguously, low addresses first:
