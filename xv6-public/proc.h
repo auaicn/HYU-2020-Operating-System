@@ -80,6 +80,7 @@ struct proc {
   int pid;    
 
   // LIGHT WEIGHT PROCESS
+  int multi_threaded;
   int tid;
   int num_thread;
   // Master thread would be index 0

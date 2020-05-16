@@ -191,7 +191,9 @@ UPROGS=\
 	_test_master\
 	_qtable_lookup\
 	_ml_test\
-	_thread_xv6\
+	_ttest_nolock\
+
+#	_thread_xv6\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -265,7 +267,8 @@ EXTRA=\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil \
 	test_mlfq.c test_stride.c test_master.c qtable_lookup.c ml_test.c\
-	thread_xv6.c\
+	ttest_nolock.c\
+#	thread_xv6.c\
 
 dist:
 	rm -rf dist

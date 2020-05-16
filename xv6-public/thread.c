@@ -2,6 +2,7 @@
 #include "defs.h"
 #include "proc.h"
 
+/*
 int thread_self(void){
 	return myproc()->tid;
 	// master thread gets -1
@@ -23,6 +24,7 @@ int thread_mutex_init(struct thread_mutex_t* mutex_structure, char* name){
 	initlock(&(myproc()->thread[0]->lock),"thread");
 	return 0;
 };
+*/
 
 struct proc*
 allocthread(void* (*start_rountine)(void*))
@@ -165,7 +167,7 @@ thread_exit(void *retval)
 	struct proc * curproc;
 
 	curproc = myproc();
-	
+
 	// k stack now unavailable
 	free(curproc -> kstack);
 

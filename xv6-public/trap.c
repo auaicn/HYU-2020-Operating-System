@@ -13,10 +13,24 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
-uint total_ticks;
+uint MLFQ_ticks;
 
-int time_quantom[3] = {5,10,20};
+#ifndef STRIDE_LEV
+#define STRIDE_LEV (9)
+#endif
+
+#ifndef STRIDE_DEFAULT_TIME_QUANTOM
+#define STRIDE_DEFAULT_TIME_QUANTOM (5)
+#endif
+
+#ifndef PERIOD_BOOSTING
+#define PERIOD_BOOSTING (200)
+#endif
+
+int time_quantom[10] = {5,10,20};
 int time_allotment[3] = {20,40,0};
+
+time_quantom[STRIDE_LEV] = STRIDE_DEFAULT_TIME_QUANTOM;
 
 void
 tvinit(void)
@@ -111,41 +125,84 @@ trap(struct trapframe *tf)
     && tf->trapno == T_IRQ0+IRQ_TIMER){
 
     struct proc* p = myproc();
-    
+
+    // Boosting needs pre emption.
     if(p->share == 0){
+      // MLFQ scheduled Single or MultiThreaded Process
+      // MLFQ_ticks is MLFQ scheduling methos' exclusive Property
       acquire(&tickslock);
-      total_ticks++;
+      MLFQ_ticks++;
       release(&tickslock);
 
-      if(p -> start_tick + time_quantom[p->lev] > total_ticks){
-        // time quantom guaranteed here
-        // yield is similar to "IO bound jobs" compared to "compute jobs"
-        // should guarantee it's execution more.
-        // just return
-        //cprintf("%d %d lev[%d] age[%d] in tick[%d] skipped\n",p->pid,p->start_tick,p->lev,p->age,total_ticks);
+    }
 
+    if(! (MLFQ_ticks%PERIOD_BOOSTING) )
+      yield();
+
+    // T interrupt has occured
+    // global ticks variable incremented
+
+    // MLFQ, STRIDE, single Threaded, MultiThreaded Process(Thread) have time quantom
+
+    if(p->num_thread == 0){
+      // Single Threaded
+      p->time_allotment--; // anyway
+      if( (p->time_allotment%time_quantom[p->lev])!=0 ){
+        // Time LEFT
         return;
-      }
-      else{
-        // time to be changed.
-        // yield  implemented below 
-        //        not explicitly call here.
-        // start_tick   has changed in proc.c:scheduler()
-        //              right before context switch is applied.
+      }else
+        // Time Finished 
+        // yield will do extra jobs
+        // MLFQ, Queue adjusting
+        // STRIDE, time allotment resotration
+        yield();
+      
+    }else
+    {
+      // Multi threaded
+      // Yield only if in finishes it's time quantom. 
+      p->time_allotment--; // anyway
+      if( (p->time_allotment%time_quantom[p->lev])!=0 ){
+        // Time LEFT
+        // Return is not desirable
+        // return;
 
-        p->age--;
-        if(p->age == 0){
-          if(p->lev != 2){
-            p->lev++;
-            p->age = 5;
-          }
+        // Switching between LWPS
+        struct proc* pp = p->parent;
+        struct thread* nt;
+
+        // Just Lookaside is OK?
+        acquire(&ptable.lock);
+
+        for (int i=1;i<=pp->num_thread;i++){
+
+          int idx = (p->tid+i)%num_thread+1;
+          cprintf("[%d/%d]\n",idx,num_thread);
+          nt = pp->threads[(p->tid+i)%num_thread+1]
+          
+          if(nt->state!=RUNNABLE)
+            continue;
+          else
+            break;
         }
 
-      }
-    }else
+        release(&ptable.lock);
+        swtch(&p->context, nt->context);
+        // Switching done
+        return;
 
-    p->from_trap = 1;
-    yield();
+      }else
+        // Time Finished yield will do extra jobs
+        // MLFQ, Queue adjusting
+        // STRIDE, time allotment resotration
+
+        // yield be careful
+        // context switching between scheduler and 
+        // but I think it would not make any issues.
+        yield();
+
+    }
+
   }
 
   // Check if the process has been killed since we yielded
@@ -154,3 +211,25 @@ trap(struct trapframe *tf)
     && (tf->cs&3) == DPL_USER)
     exit();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

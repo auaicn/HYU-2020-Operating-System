@@ -12,6 +12,7 @@
 #define PERIOD_BOOSTING (200)
 #define STRIDE_DEFAULT_TIME_QUANTOM (5)
 #define INITIAL_LEV (0)
+#define STRIDE_LEV (9)
 
 
 struct {
@@ -93,7 +94,7 @@ set_cpu_share(int share)
   }
 
   // clear variables associated to MLFQ
-  p->lev = -1;
+  p->lev = STRIDE_LEV;
   p->time_allotment = STRIDE_DEFAULT_TIME_QUANTOM;
 
   release(&ptable.lock);
@@ -200,6 +201,14 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+
+
+
+
+
+
+  // LWP
+  p -> multi_threaded = 0; // false initially
 
   // for MLFQ scheduling
   p -> lev = INITIAL_LEV;
@@ -460,17 +469,12 @@ wait(void)
 }
 
 //PAGEBREAK: 42
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run
-//  - swtch to start running that process
-//  - eventually that process transfers control
-//      via swtch back to the scheduler.
+
+
+// only for process managed by MLFQ
 void 
 boost (void)
 {
-  //cprintf("[boosting]\n");
   for (int i=0;i<NPROC;i++)
   {
     if(ptable.proc[i].pid == 0)
@@ -487,7 +491,8 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-  // initialize STRIDE[0]
+  // virtual process in STRIDE table
+  // if the process is chosed, MLFQ scheduling is done.
 
   struct proc mlfq;
   mlfq.share = 100;
@@ -496,7 +501,7 @@ scheduler(void)
   mlfq.state = RUNNABLE;
   stable.proc[++stable.stable_size] = &mlfq;
   
-  // preven memory leakage
+  // prevent memory leakage
   int i,j;
   int min_index;
 
@@ -612,28 +617,39 @@ yield(void)
   struct proc* p = myproc();
 
   // check if it came from MLFQ
-  if(p->from_trap){
-    p->from_trap = 0;
 
+  if(p->share==0){
+    // MLFQ
     int lev_pre = p->lev;
+
+    if(p -> time_allotment == 0 
+      && p -> lev != DEPTH_QUEUE - 1)
+      p->lev++;      
+
     int lev_now = p->lev;
 
-    if(p -> time_quantom /== 5)
-      lev_pre--;
+    // p->time_allotment = time_quantom[p->lev]; Intergrated with MLFQ below
+    
     //dequeue in lev[lev_pre]
     for (int i=0;i<=ptable.q_size[lev_pre];i++){
         if(ptable.ARRAYQUEUE[lev_pre][i] == p){
-          //cprintf("FOUND\n");
           ptable.q_size[lev_pre]--;
           for (int j=i;j<=ptable.q_size[lev_pre];j++){
             ptable.ARRAYQUEUE[lev_pre][j] = ptable.ARRAYQUEUE[lev_pre][j+1];
           }
         }
     }
-    //enqueue in lev[lev_now]
+
+    //enqueue in lev[lev_now] as Last element.
     ptable.ARRAYQUEUE[lev_now][++ptable.q_size[lev_now]] = p;
 
+  }else{
+    // STRIDE
+    // p -> time_allotment = time_quantom[p->lev]; Intergrated with MLFQ
+    // its' level does not change.
   }
+
+  p -> time_allotment = time_quantom[p->lev];
 
   sched();
   release(&ptable.lock);

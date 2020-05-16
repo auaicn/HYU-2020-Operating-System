@@ -14,10 +14,13 @@ struct superblock;
 int thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg);
 void thread_exit(void *retval);
 int thread_join(thread_t thread, void **retval);
+
+/*
 int thread_self(void);
 int thread_mutex_lock(void);
 int thread_mutex_unlock(void);
 int thread_mutex_init(void);
+*/
 
 // queue_table_lookup.c
 void 			queue_table_lookup(void);

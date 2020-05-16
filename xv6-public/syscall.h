@@ -31,8 +31,10 @@
 #define SYS_thread_join 27
 #define SYS_thread_exit 28
 
+/*
 #define SYS_thread_self 29
 
 #define SYS_thread_mutex_lock 30
 #define SYS_thread_mutex_unlock 31
 #define SYS_thread_mutex_init 32
+*/

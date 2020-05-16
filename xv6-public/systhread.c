@@ -2,6 +2,7 @@
 #include "defs.h"
 #include "thread.h"
 
+/*
 int 
 sys_thread_self(void)
 {
@@ -25,6 +26,7 @@ sys_thread_mutex_init(void)
 {
   return thread_mutex_init;
 }
+*/
 
 int 
 sys_thread_create(void)
