@@ -13,6 +13,10 @@ struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+uint total_ticks;
+
+int time_quantom[3] = {5,10,20};
+int time_allotment[3] = {20,40,0};
 
 void
 tvinit(void)
@@ -33,7 +37,7 @@ idtinit(void)
 }
 
 //PAGEBREAK: 41
-void
+void 
 trap(struct trapframe *tf)
 {
   if(tf->trapno == T_SYSCALL){
@@ -102,11 +106,51 @@ trap(struct trapframe *tf)
 
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
-  if(myproc() && myproc()->state == RUNNING &&
-     tf->trapno == T_IRQ0+IRQ_TIMER)
+  if(myproc() 
+    && myproc()->state == RUNNING 
+    && tf->trapno == T_IRQ0+IRQ_TIMER){
+
+    struct proc* p = myproc();
+    
+    if(p->share == 0){
+      acquire(&tickslock);
+      total_ticks++;
+      release(&tickslock);
+
+      if(p -> start_tick + time_quantom[p->lev] > total_ticks){
+        // time quantom guaranteed here
+        // yield is similar to "IO bound jobs" compared to "compute jobs"
+        // should guarantee it's execution more.
+        // just return
+        //cprintf("%d %d lev[%d] age[%d] in tick[%d] skipped\n",p->pid,p->start_tick,p->lev,p->age,total_ticks);
+
+        return;
+      }
+      else{
+        // time to be changed.
+        // yield  implemented below 
+        //        not explicitly call here.
+        // start_tick   has changed in proc.c:scheduler()
+        //              right before context switch is applied.
+
+        p->age--;
+        if(p->age == 0){
+          if(p->lev != 2){
+            p->lev++;
+            p->age = 5;
+          }
+        }
+
+      }
+    }else
+
+    p->from_trap = 1;
     yield();
+  }
 
   // Check if the process has been killed since we yielded
-  if(myproc() && myproc()->killed && (tf->cs&3) == DPL_USER)
+  if(myproc() 
+    && myproc()->killed 
+    && (tf->cs&3) == DPL_USER)
     exit();
 }
