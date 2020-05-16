@@ -1,6 +1,11 @@
 #include "types.h"
 #include "defs.h"
+#include "param.h"
+#include "memlayout.h"
+#include "mmu.h"
+#include "x86.h"
 #include "proc.h"
+#include "spinlock.h"
 
 /*
 int thread_self(void){
@@ -62,6 +67,8 @@ found:
   sp = p->kstack + KSTACKSIZE;
 
   // Leave room for trap frame. type casting.
+  //struct trapframe *tf;      
+
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
 
@@ -70,13 +77,14 @@ found:
   sp -= 4;
   *(uint*)sp = (uint)trapret;
 
+  // struct context *context;     // swtch() here to run process
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)start_rountine;
 
   acquire(&ptable.lock);
-  p->threads[(++p->num_thread[0])] = p;
+  p->threads[++(p->num_thread)] = p;
   release(&ptable.lock);
 
   cprintf("PROC ALLOCED with pid[%d]\n",p->pid);
@@ -94,7 +102,7 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 	// TO ejfpaosf
 	proc* p = myproc();
 
-  	if((new_thread = allocthread()) == 0)
+  	if((new_thread = allocthread(start_rountine)) == 0)
     	return -1;
 
     p -> classifier = 1;
@@ -105,24 +113,21 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 
 	new_thread -> context -> eip = (void*)start_rountine;
 
+	// is it right?
 	new_thread -> sp -= sizeof(arg);
 	cpy(arg,sp,sizeof(sp));
 	new_thread -> sp += sizeof(arg);
 
-	//
-	pde_t* pgdir;                // Page table
-  
-	char *kstack;                // Bottom of kernel stack for this process
-	enum procstate state;        // Process state
-	// allocprock then returned with EMBRYO state
-	
 
-	struct trapframe *tf;        // Trap frame for current syscall
-	struct context *context;     // swtch() here to run process
-	void *chan;                  // If non-zero, sleeping on chan
+	//pde_t* pgdir;                // Page table
+	new_thread -> pgdir = p -> pgdir;
+	
+	// void *chan;                  // If non-zero, sleeping on chan
+	new_thread -> chan = 0;
 	
 	// int killed;                  // If non-zero, have been killed
-	
+	new_thread -> killed = 0;
+
 	// struct inode *cwd;           // Current directory
 	curproc -> cwd = p ->cwd;
 
@@ -153,6 +158,7 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 
 	acquire(&ptable.lock);
 
+	// enum procstate state;
 	new_thread->state = RUNNABLE;
 
 	release(&ptable.lock);
