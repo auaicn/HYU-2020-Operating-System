@@ -104,6 +104,18 @@ extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
 
+extern int sys_set_cpu_share(void);
+extern int sys_getlev(void);
+extern int sys_yield(void);
+extern int sys_myfunction(void);
+extern int sys_getppid(void);
+extern int sys_queue_table_lookup(void);
+
+extern int sys_thread_create(void);
+extern int sys_thread_exit(void);
+extern int sys_thread_join(void);
+
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -126,7 +138,20 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+
+[SYS_set_cpu_share] sys_set_cpu_share,
+[SYS_getlev]  sys_getlev,
+[SYS_yield]   sys_yield,
+[SYS_myfunction]	sys_myfunction,
+[SYS_getppid]	sys_getppid,
+[SYS_queue_table_lookup]  sys_queue_table_lookup,
+
+[SYS_thread_create] sys_thread_create,
+[SYS_thread_exit] sys_thread_exit,
+[SYS_thread_join] sys_thread_join,
+
 };
+
 
 void
 syscall(void)
