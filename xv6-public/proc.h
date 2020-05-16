@@ -32,7 +32,13 @@ struct context {
   uint eip;
 };
 
-#include "thread.h"
+// JUST added
+typedef int pid_t;
+
+// FOR reusing proc structure
+typedef int thread_t;
+typedef proc thread;
+typedef procstate threadstate;
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
@@ -43,7 +49,6 @@ struct proc {
   uint sz;                     // Size of process memory (bytes)
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
-  int pid;                     // Process ID
   struct proc *parent;         // Parent process
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
@@ -59,18 +64,24 @@ struct proc {
   uint start_tick;
   int age;
   int lev;
-
   int from_trap;
 
   //  STRIDE SCHEDULING
   int share;
   int pass;
 
-  // LIGHT WEIGHT PROCESS
-  int multi_thread;
-  int num_thread;
-  struct thread threads[NPROC];
+  // CLASSIFIER
+  // 0 : Single Thread Process
+  // 1 : Master Thread
+  // 2 : Threads
+  int classifier;
 
+  // PROCESS
+  int pid;    
+
+  // LIGHT WEIGHT PROCESS
+  int tid;
+  struct thread threads[NTHREAD];
 };
 
 // Process memory is laid out contiguously, low addresses first:

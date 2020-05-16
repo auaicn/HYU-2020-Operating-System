@@ -10,23 +10,26 @@
 #define MULTSTRIDESHARE (1000)
 #define DEPTH_QUEUE   (3)
 #define PERIOD_BOOSTING (200)
+#define DEFAULT_TIME_QUANTOM (5)
+#define INITIAL_LEV (0)
+
 
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
-  //struct q_element* HEADER[DEPTH_QUEUE];
   struct proc* ARRAYQUEUE[DEPTH_QUEUE][NPROC];
   int q_size[DEPTH_QUEUE];
 } ptable;
 
 struct {
-  struct proc* proc[NPROC]; // min-heap implemented
+  struct proc* proc[NPROC]; 
   int stable_size;
 } stable;
 
 static struct proc *initproc;
 
 int nextpid = 1;
+
 extern void forkret(void);
 extern void trapret(void);
 static void wakeup1(void *chan);
@@ -44,7 +47,9 @@ queue_table_lookup(void)
   }
 }
 
-int min(int x,int y){
+int 
+min(int x,int y)
+{
   return x<y?x:y;
 }
 
@@ -75,7 +80,6 @@ set_cpu_share(int share)
   p->pass = min_pass;
 
   // dequeue from q
-
   for (int i=0;i<=ptable.q_size[p->lev];i++){
     if(p == ptable.ARRAYQUEUE[p->lev][i]){
       ptable.q_size[p->lev]--;
@@ -87,7 +91,7 @@ set_cpu_share(int share)
 
   // clear variables associated to MLFQ
   p->lev = -1;
-  p->age = -1;
+  p->age = DEFAULT_TIME_QUANTOM;
 
   release(&ptable.lock);
   return 1;
@@ -103,7 +107,8 @@ pinit(void)
 
 // Must be called with interrupts disabled
 int
-cpuid() {
+cpuid() 
+{
   return mycpu()-cpus;
 }
 
@@ -197,17 +202,18 @@ found:
   p->context->eip = (uint)forkret;
 
   // for MLFQ scheduling
-  p->lev = 0;
-  p->age = 5;
-  p->from_trap = 0;
+  p -> lev = INITIAL_LEV;
+  p -> age = time_quantom[INITIAL_LEV];
+  p -> time_alloted = time_allotment[INITIAL_LEV];
+
+  p -> from_trap = 0;
 
   // for STRIDE scheduling
-  p->share = 0;
-  p->pass = 0;
-  p->start_tick = ticks;
+  p -> share = 0;
+  p -> pass = 0;
+  p -> start_tick = ticks;
 
-  p->num_thread = 1;
-
+  p -> num_thread = 1;
 
   acquire(&ptable.lock);
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;

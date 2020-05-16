@@ -176,10 +176,14 @@ void            timerinit(void);
 
 // trap.c
 void            idtinit(void);
-extern uint     ticks;
-extern uint 	total_ticks;
 void            tvinit(void);
 extern struct spinlock tickslock;
+
+// trap.c my implementation
+extern uint     ticks;
+extern uint 	total_ticks;
+extern int time_quantom[3];
+extern int time_allotment[3];
 
 // uart.c
 void            uartinit(void);
