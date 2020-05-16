@@ -135,8 +135,8 @@ trap(struct trapframe *tf)
 
     }
 
-    if(! (MLFQ_ticks%PERIOD_BOOSTING) )
-      yield();
+    if(! (MLFQ_ticks%PERIOD_BOOSTING) );
+      //boost();
 
     // T interrupt has occured
     // global ticks variable incremented
@@ -171,7 +171,7 @@ trap(struct trapframe *tf)
         thread* nt = NULL;
 
         // Just Lookaside is OK?
-       //acquire(&ptable.lock);
+        // acquire(&ptable.lock);
 
         for (int i=1;i<=pp->num_thread;i++){
 
@@ -209,25 +209,4 @@ trap(struct trapframe *tf)
     && (tf->cs&3) == DPL_USER)
     exit();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

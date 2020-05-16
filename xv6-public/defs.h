@@ -23,6 +23,7 @@ int thread_mutex_init(void);
 */
 
 // queue_table_lookup.c
+void 			boost (void);
 void 			queue_table_lookup(void);
 
 // bio.c
@@ -143,7 +144,6 @@ int 			set_cpu_share(int);
 void            swtch(struct context**, struct context*);
 
 // spinlock.c
-// extern struct spinlock;
 void            acquire(struct spinlock*);
 void            getcallerpcs(void*, uint*);
 int             holding(struct spinlock*);
@@ -185,7 +185,7 @@ extern struct spinlock tickslock;
 
 // trap.c my implementation
 extern uint     ticks;
-extern uint 	total_ticks;
+extern uint 	MLFQ_ticks;
 extern int time_quantom[10];
 extern int time_allotment[10];
 

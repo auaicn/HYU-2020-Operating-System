@@ -35,8 +35,6 @@ struct context {
 // JUST added
 typedef int pid_t;
 
-struct proc;
-
 // FOR reusing proc structure
 typedef int thread_t;
 typedef struct proc thread;
@@ -84,8 +82,10 @@ struct proc {
   int multi_threaded;
   int tid;
   int num_thread;
+  int ret_val[NTHREAD];
   // Master thread would be index 0
   thread* threads[NTHREAD];
+  int lock;
   // For master thread
   // struct spinlock lock; 
 

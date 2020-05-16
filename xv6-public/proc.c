@@ -65,16 +65,17 @@ int thread_mutex_init(struct thread_mutex_t* mutex_structure, char* name){
 */
 
 thread*
-allocthread(void* (*start_rountine)(void*))
+allocthread(void)
 {
   struct proc *p;
   char *sp;
 
   acquire(&ptable.lock);
-
-  for(p = NPROC-1;p>nextpid;p--){
-    if(p->state == UNUSED)
+  for(int i = NPROC-1; i > nextpid; i--){
+    p = &ptable.proc[i];
+    if(p -> state == UNUSED){
       goto found;
+    }
   }
   release(&ptable.lock);
   return 0;
@@ -96,8 +97,6 @@ found:
   // TRAPFRAME setting
   sp -= sizeof *p->tf;
   p->tf = (struct trapframe*)sp;
-  *new_thread->tf = *curproc->tf;
-  p->tf->eip = (uint)start_rountine;
 
   // Set up new context to start executing at forkret,
   // which returns to trapret.
@@ -131,14 +130,13 @@ int
 thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 {
   struct proc* p;
-  char* sp;
   struct proc* new_thread;
   //thread* new_thread = NULL;
 
   // TO ejfpaosf
   p = myproc();
 
-  if((new_thread = allocthread(start_rountine)) == NULL)
+  if((new_thread = allocthread()) == NULL)
     return -1;
 
   if(p->multi_threaded == 0)
@@ -146,13 +144,13 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
 
   new_thread -> pid = -1;
   new_thread -> tid = ++(p -> num_thread);
-  new_thread->parent = curproc;
+  new_thread -> parent = p;
 
   new_thread -> pgdir = p -> pgdir;
   new_thread -> chan = 0;
   new_thread -> killed = 0;
-  curproc -> cwd = p ->cwd;
-  new_thread->sz = curproc ->sz;
+  new_thread -> cwd = p ->cwd;
+  new_thread -> sz = p -> sz;
 
   // context and trapfram handling is done at allocthread call
   //*new_thread->tf = *curproc->tf;
@@ -161,18 +159,22 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
   // only for fork representation
   // now need not
 
-  new_thread -> sz = curproc-> sz + 2 * PGSIZE;
+  // Nope. needed
+  *new_thread -> tf = *p -> tf;
+  p->tf->eip = (uint)start_rountine;
+
+  new_thread -> sz = p -> sz + (p -> num_thread) * 2 * PGSIZE;
   new_thread -> sz -= 8;
-  *(int*)(new_thread->sz) = *(int*)arg[0];
+  *(int*)(new_thread->sz) = ((int*) arg)[0];
   new_thread -> sz += 4;
-  *(int*)(new_thread->sz) = *(int*)trapret;
+  *(int*)(new_thread->sz) = ((int*) arg)[1];
   new_thread -> sz += 4;
 
 
-  for(i = 0; i < NOFILE; i++)
-    if(curproc->ofile[i])
-      new_thread->ofile[i] = filedup(curproc->ofile[i]);
-  new_thread->cwd = idup(curproc->cwd);
+  for(int i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      new_thread->ofile[i] = filedup(p->ofile[i]);
+  new_thread->cwd = idup(p->cwd);
 
   // has same name
   char thread_name[13] = "THREAD[Name]"; int size_thread_name = 13;
@@ -192,31 +194,47 @@ thread_exit(void *retval)
 
   curproc = myproc();
 
-  // k stack now unavailable
-  free(curproc -> kstack);
-
   // working thread become zombie. exit of master thread will deal with it
   curproc -> state = ZOMBIE;
   
-  // tid reused as retval
-  curproc -> tid = *retval;
+  curproc -> ret_val[curproc->tid] = *(int*)retval;
 
   wakeup1(curproc->parent);
 
   // after signal, parent can know the retval through tid.
   sched();
   panic("[THREAD]zombie exit");
+
+  // NO return
 }
 
 int
-thread_join(thread_t thread, void **retval)
+thread_join(thread_t threadid, void **retval)
 {
-  return 0;
+  struct proc * curproc;
+  curproc = myproc();
+
+  
+  // cleanup Kernel stack and User Stack
+  kfree(curproc -> kstack);
+
+  // kfree(curproc -> sz);
+  // Never. Violation could happen later.
+  // I'm using Master thread(initially Single Process)'s Userstack
+  // as thread's own stack.
+
+  sleep(curproc,NULL);
+  
+  /*
+  for (int i=0;i<curproc->num_thread;i++)
+  {
+    if()
+  }
+  */
+
+  *(int*)retval = curproc->ret_val[threadid];
+  return 0; // success
 }
-
-
-
-
 
 
 
@@ -395,6 +413,9 @@ found:
   p -> share = 0;
   p -> pass = 0;
 
+  //char temp[10] = "auaicn";
+  //initlock(p -> lock, temp);
+
   acquire(&ptable.lock);
   ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
   release(&ptable.lock);
@@ -407,6 +428,7 @@ found:
 void
 userinit(void)
 {
+  cprintf("[USERINIT]Entering\n");
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
@@ -444,6 +466,8 @@ userinit(void)
   p->state = RUNNABLE;
 
   release(&ptable.lock);
+
+  cprintf("[USERINIT]Escaping\n");
 }
 
 // Grow current process's memory by n bytes.
@@ -656,6 +680,7 @@ boost (void)
     ptable.proc[i].lev = 0;
     ptable.proc[i].time_allotment = time_allotment[0];
   }
+  cprintf("[BOOST]Escaping\n");
 }
 
 void
@@ -690,10 +715,12 @@ scheduler(void)
 
     acquire(&ptable.lock);
 
+    /*
     // Starvation
-    if(total_ticks % PERIOD_BOOSTING == 0){
+    if(MLFQ_ticks % PERIOD_BOOSTING == 0){
       boost();
     }
+    */
 
     min_index = 0;
     for (i = 0; i <= stable.stable_size; i++ ){
@@ -729,6 +756,7 @@ scheduler(void)
     }
 
     if(p->state==RUNNABLE){
+       cprintf("FOUND\n");
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -736,7 +764,7 @@ scheduler(void)
 
       // start_tick is used for MLFQ but not matters 
       // even if we include it to STRIDE
-      p->start_tick = total_ticks;
+      p->start_tick = MLFQ_ticks;
 
       c->proc = p;
       switchuvm(p);
