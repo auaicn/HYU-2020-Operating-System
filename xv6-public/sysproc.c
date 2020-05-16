@@ -7,6 +7,39 @@
 #include "mmu.h"
 #include "proc.h"
 
+//below is my implementation
+
+int
+sys_queue_table_lookup(void)
+{
+  queue_table_lookup();
+  return 0; //success
+}
+
+
+int 
+sys_yield(void)
+{
+	yield();
+	return 0;
+}
+
+//above is my implementation
+int
+sys_getlev(void)
+{
+  return getlev();
+}
+
+int
+sys_set_cpu_share(void)
+{
+  int share_;
+  if(argint(0, &share_) < 0)
+    return -1;
+  return set_cpu_share(share_)
+;}
+
 int
 sys_fork(void)
 {
@@ -40,6 +73,12 @@ int
 sys_getpid(void)
 {
   return myproc()->pid;
+}
+
+int
+sys_getppid(void)
+{
+	return myproc()->parent->pid;
 }
 
 int
