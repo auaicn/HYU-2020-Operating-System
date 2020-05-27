@@ -71,12 +71,18 @@ allocthread(void)
   char *sp;
 
   acquire(&ptable.lock);
+
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == UNUSED)
+      goto found;
+  /*
   for(int i = NPROC-1; i > nextpid; i--){
     p = &ptable.proc[i];
     if(p -> state == UNUSED){
       goto found;
     }
   }
+  */
   release(&ptable.lock);
   return 0;
 
@@ -127,7 +133,7 @@ found:
 
 // thread.c
 int 
-thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
+thread_create(thread_t *thread, void* (*start_rountine)(void*), void **arg)
 {
   struct proc* p;
   struct proc* new_thread;
@@ -142,35 +148,73 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
   if(p->multi_threaded == 0)
     p->multi_threaded = 1;
 
-  new_thread -> pid = -1;
-  new_thread -> tid = ++(p -> num_thread);
-  new_thread -> parent = p;
+  new_thread -> multi_threaded = 1;
 
+  new_thread -> tid = p -> num_thread;
+  new_thread -> master_thread = p;
+
+  // no parent
   new_thread -> pgdir = p -> pgdir;
   new_thread -> chan = 0;
   new_thread -> killed = 0;
   new_thread -> cwd = p ->cwd;
   new_thread -> sz = p -> sz;
 
-  // context and trapfram handling is done at allocthread call
-  //*new_thread->tf = *curproc->tf;
-  // new_thread -> context -> eip = (int)start_rountine;
-  // new_thread->tf->eax = 0; 
-  // only for fork representation
-  // now need not
+  // memcpy(new_thread->tf,p->tf,sizeof(struct trapframe)); needed?
+  p->tf->eip = (uint)start_routine;
+  cprintf("start_rountine changed");
 
-  // Nope. needed
-  *new_thread -> tf = *p -> tf;
-  p->tf->eip = (uint)start_rountine;
+  // Allocate two pages at the next page boundary.
+  // Make the first inaccessible.  Use the second as the user stack.
 
-  new_thread -> sz = p -> sz + (p -> num_thread) * 2 * PGSIZE;
+  char* sz = & (p->sz);
+  printf("initial sz : %x\n",sz);
+  sz = PGROUNDUP(sz);
+  printf("rounded sz : %x\n",sz);
+  if((sz = allocuvm(pgdir, sz, sz + 2*PGSIZE)) == 0)
+    goto bad;
+  printf("after allocuvm sz : %x\n",sz);
+
+  // newsz = oldsz + 2*PGSIZE
+  // [oldsz:oldsz+PGSIZE] cleared
+  clearpteu(new_thread->pgdir,(char*)(sz - 2*PGSIZE));
+
+  // now user stack initialization relative to newthread -> sp
+  char* sp = new_thread -> sp;
+  //new_thread -> sp = sz;
+
+  // argv last element has to be 0 or '\0' or so. change later in respect to convention.
+  // Push argument strings, prepare rest of stack in ustack.
+  // copyout 은 memcpy 비슷한건데 
+  int argc;
+  for(argc = 0; argv[argc]; argc++) {
+    if(argc >= MAXARG)
+      goto bad;
+    
+    // if(memcpy(new_thread->tf,p->tf,sizeof(struct trapframe)); allocated ten usable/
+    sp = (sp - (strlen(argv[argc]) + 1)) & ~3;
+    if(copyout(pgdir, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
+      goto bad;
+    ustack[3+argc] = sp;
+  }
+  ustack[3+argc] = 0;
+
+  ustack[0] = 0xffffffff;  // fake return PC
+  ustack[1] = argc;
+  ustack[2] = sp - (argc+1)*4;  // argv pointer
+
+  sp -= (3+argc+1) * 4;
+  if(copyout(pgdir, sp, ustack, (3+argc+1)*4) < 0)
+    goto bad;
+  /*
   new_thread -> sz -= 8;
   *(int*)(new_thread->sz) = ((int*) arg)[0];
   new_thread -> sz += 4;
   *(int*)(new_thread->sz) = ((int*) arg)[1];
   new_thread -> sz += 4;
+  */
 
-
+  
   for(int i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       new_thread->ofile[i] = filedup(p->ofile[i]);
@@ -181,6 +225,7 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void *arg)
   safestrcpy(new_thread->name, thread_name, size_thread_name);
 
   acquire(&ptable.lock);
+  // scheduler do not picks thread.
   new_thread->state = RUNNABLE;
   release(&ptable.lock);
 
