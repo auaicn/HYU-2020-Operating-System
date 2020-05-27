@@ -89,6 +89,10 @@ struct proc {
   // For master thread
   // struct spinlock lock; 
 
+  // Debugging
+  int first_scheduled;
+  int from_trap;
+
 };
 
 

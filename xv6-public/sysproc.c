@@ -87,6 +87,7 @@ sys_queue_table_lookup(void)
 int 
 sys_yield(void)
 {
+	myproc()->from_trap = 0;
 	yield();
 	return 0;
 }

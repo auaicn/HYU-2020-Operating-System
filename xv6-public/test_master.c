@@ -22,7 +22,7 @@ char *child_argv[CNT_CHILD][3] = {
   // Process scheduled by MLFQ scheduler, does not yield() itself
   {NAME_CHILD_MLFQ, "0", 0},
   // Process scheduled by MLFQ scheduler, frequently yield()
-  {NAME_CHILD_MLFQ, "1", 0},
+  {NAME_CHILD_MLFQ, "0", 0},
 };
 
 int

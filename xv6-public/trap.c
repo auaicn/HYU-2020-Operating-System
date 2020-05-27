@@ -130,31 +130,49 @@ trap(struct trapframe *tf)
       // MLFQ scheduled Single or MultiThreaded Process
       // MLFQ_ticks is MLFQ scheduling methos' exclusive Property
       acquire(&tickslock);
+      //cprintf("MLFQ ticks:[%d]",MLFQ_ticks);
       MLFQ_ticks++;
       release(&tickslock);
 
     }
 
-    if(! (MLFQ_ticks%PERIOD_BOOSTING) );
-      //boost();
+    // shell or init process is also managed by MLFQ and shares MLFQ_ticks.
+    // but init and sh doest not frequently grab it.
+    // when CPUS=1 qemu-nox is executed,
+    // after $ (prompt) shown to us, sh go to sleep. and no process is runnable at that time.
+    // before we enter the xv6 command, during the period, always scheduler(kernel)
+    // is handling cpu.
+    if(! (MLFQ_ticks%PERIOD_BOOSTING) )
+      boost();
 
     // T interrupt has occured
     // global ticks variable incremented
 
     // MLFQ, STRIDE, single Threaded, MultiThreaded Process(Thread) have time quantom
 
-    if(p->num_thread == 0){
+    if(p -> num_thread == 0){
+      p -> time_allotment--; // anyway
+      /*
+      //if(p -> share == 0){
+        cprintf("pid[%d]lev[%d]",p->pid,p->lev);
+        for (int i=0;i<p->time_allotment;i++)
+          cprintf("*");
+        cprintf("\n");
       // Single Threaded
-      p->time_allotment--; // anyway
-      if( (p->time_allotment%time_quantom[p->lev])!=0 ){
+      //}
+        */
+      if(( p->time_allotment % time_quantom[p->lev] ) != 0){
         // Time LEFT
         return;
-      }else
+      }else{
+        // cprintf("yield\n");
         // Time Finished 
         // yield will do extra jobs
         // MLFQ, Queue adjusting
         // STRIDE, time allotment resotration
+        p->from_trap = 1;
         yield();
+      }
       
     }else
     {
@@ -189,7 +207,7 @@ trap(struct trapframe *tf)
         }
         panic("thread to run not found");
 
-      }else
+      }else{
         // Time Finished yield will do extra jobs
         // MLFQ, Queue adjusting
         // STRIDE, time allotment resotration
@@ -197,8 +215,9 @@ trap(struct trapframe *tf)
         // yield be careful
         // context switching between scheduler and 
         // but I think it would not make any issues.
+        p->from_trap = 1;
         yield();
-
+      }
     }
 
   }

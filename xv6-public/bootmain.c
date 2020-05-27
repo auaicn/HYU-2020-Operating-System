@@ -119,7 +119,7 @@ readsect(void *dst, uint offset)
 void
 readseg(uchar* pa, uint count, uint offset)
 {
-  cprintf("%x %x %x\n",pa,count,offset);
+  //cprintf("%x %x %x\n",pa,count,offset);
   uchar* epa;
 
   epa = pa + count;

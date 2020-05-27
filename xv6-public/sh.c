@@ -169,6 +169,8 @@ main(void)
     }
     if(fork1() == 0)
       runcmd(parsecmd(buf));
+
+    // shell waits for command or program (which child executes) finishes.
     wait();
   }
   exit();
