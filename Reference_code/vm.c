@@ -38,22 +38,10 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   pde_t *pde;
   pte_t *pgtab;
 
-  // pgdir 은 setupkvm 에서 만들어놔서 있다는 가정하에
   pde = &pgdir[PDX(va)];
-  // directory index로 접근을 해서 pde 즉, page table page를 가져옴
-
-  // page table page 없을 수도 있으니깐 있는지 확인하고 (x) 없어졌을 수도 있거든 지워져서
-  // 그래서 pagle table page 가 valid (present) 한지 PTE_P랑 bitwise해서 확인함.
-  // & 연산 이니깐 그냥 entry 있는지 확인한거. 그게 그거.
   if(*pde & PTE_P){
-    // dir entry가 있는 상황.
-    // PTE_ADDR로 뒤에 12bit clear ( PTE_P PTE_U 등등 flag )
-    // P2V는 KERN, 0x80000000을 더해주는 부분. 
-    // 커널은 contiguous하게 가져다가 박아놨으니??
     pgtab = (pte_t*)P2V(PTE_ADDR(*pde));
   } else {
-
-    // directory 에 entry가 없는 상황임.
     if(!alloc || (pgtab = (pte_t*)kalloc()) == 0)
       return 0;
     // Make sure all those PTE_P bits are zero.
@@ -77,69 +65,17 @@ mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
 
   a = (char*)PGROUNDDOWN((uint)va);
   last = (char*)PGROUNDDOWN(((uint)va) + size - 1);
-
-  // PG ROUND DOWN 은 그냥 0-15 bit clear 하는 거야.
-  // pa 를 받고 들어왔다는걸 알아두자.
-  // pa 가 4K의 배수면 좋겠는데 그렇지 않게 들어왔다면, 부득이하게
-  // 하나 더 넉넉잡아 할당을 해주는거야. pg fault 나면 안되니까.
-  // 하나 더 넉넉잡아서 해주는 부분은 mappage 를 부르는 건 setup kvm 이고, kmap[] 을 보고하는데
-  // 아직 kmap이 어떻게 값이 들어가는지, 들어가있는지는 모르겠긴해
-
-  /*
-  static struct kmap {
-  void *virt;
-  uint phys_start;
-  uint phys_end;
-  int perm;
-
-  kmap[] = {
-   순서가 있으니까
-   virtual            P_start        P_end      permission            느낌이겠네.
-
-   { (void*)KERNBASE, 0,             EXTMEM,    PTE_W}, // I/O space
-   { (void*)KERNLINK, V2P(KERNLINK), V2P(data), 0},     // kern text+rodata
-   { (void*)data,     V2P(data),     PHYSTOP,   PTE_W}, // kern data+memory
-   { (void*)DEVSPACE, DEVSPACE,      0,         PTE_W}, // more devices
-  };
-  */
-
-  /*
-  Um...  머 페이지가 사이즈가 10이라고 하고
-  virtual 6인애를 physical 15에다가 size 123만큼 mapping 하라고 하면,
-  virtual [round(6):round(6+123-1)] round가 1의자리 버림이라 생각해
-  [0:120] 되겠네
-  walk 하고나서 a == last 인걸 보니까
-  [0:10] [10:20] .... [120:130] 전부다 볼듯
-  넉넉하게 보네. last 에 size - 1 을 더해주고, round하는게 그 처리부분인가보다.
-  */
-
   for(;;){
     if((pte = walkpgdir(pgdir, a, 1)) == 0)
       return -1;
-
-    // 위에서 walkpgdir을 alloc = 1로 호출하잖아.
-    // 그럼 없어가지고 만들어졌으면, memset해서 준 상태인데 PTE_P on 이라는 건
-    // walkpgdir 을 다 뒤져봤는데, alloc = 1로 부르는건 mappage 밖에 없어.
-    // page deallocation 시에 entry가 지워질수도 있고 그러긴한데, 지울때, PTE_P는
-    // 지워줘야지. NULL로 만든다거나 실제로 지울 필요는 없는데
-    // PTE_P만 지워도 되는데, PTE_P는 지워야지.
-    // 아무튼 remapping 이니깐 처리가 잘못되었다는걸 여기서 확인해줌.
-
     if(*pte & PTE_P)
       panic("remap");
-
-    // entry의 주소를 가져왔고, 이제 mapping 하는 실질적인 부분임.
     *pte = pa | perm | PTE_P;
-
     if(a == last)
       break;
-
-    // PG대로 SIZE 충족할때까지 virtual 상에서는 contiguous 하게 mapping.
     a += PGSIZE;
     pa += PGSIZE;
   }
-  
-  // on success
   return 0;
 }
 
@@ -185,24 +121,12 @@ setupkvm(void)
   pde_t *pgdir;
   struct kmap *k;
 
-  // DIRECTORY created
   if((pgdir = (pde_t*)kalloc()) == 0)
     return 0;
   memset(pgdir, 0, PGSIZE);
-
   if (P2V(PHYSTOP) > (void*)DEVSPACE)
     panic("PHYSTOP too high");
-
-  // NELEM 은 kmap이 struct 배열이거든?
-  // struct 몇개인지 보는거야. 그냥.
-
-  // p table 보듯이 주소로 보네. 0 base 마지막 element는 계산시에 overflow 등등 안나는게 신기하긴한데
-  // OS 내부니까 오류를 잡든 자기들 마음이지.
-
   for(k = kmap; k < &kmap[NELEM(kmap)]; k++)
-
-    // virtual을 physical start 에다 mapping 할거야.
-    // size를 딱히 안주고 physical end 를 줬음. 안에서 계산할거(그냥 인자로 저렇게 넣어줬으니)
     if(mappages(pgdir, k->virt, k->phys_end - k->phys_start,
                 (uint)k->phys_start, k->perm) < 0) {
       cprintf("[error] mappage, setupkvm(). page \'Directory\' cannot be set\n");
@@ -308,12 +232,16 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+
+    // internally its kalloc()!
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");
       deallocuvm(pgdir, newsz, oldsz);
       return 0;
     }
+
+    // clear and add to mapping table!
     memset(mem, 0, PGSIZE);
     if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
       cprintf("allocuvm out of memory (2)\n");
@@ -406,16 +334,9 @@ copyuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-
-    // kalloc get one free page.
     if((mem = kalloc()) == 0)
       goto bad;
-
-    // memmove (dest,src,size)
     memmove(mem, (char*)P2V(pa), PGSIZE);
-
-    // add to mapping table
-    // mappages(kernel_page, page_number(user_size can be big), size, real_address, flag)
     if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
       kfree(mem);
       goto bad;
