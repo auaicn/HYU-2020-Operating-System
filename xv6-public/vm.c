@@ -306,8 +306,14 @@ allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
   if(newsz < oldsz)
     return oldsz;
 
+  // overwhelming at most 4096 but not lack
+  // because it is called from the first time!
+  // looks like given memory is smaller but those space is
+  // already!! given before!
+  
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){
+    cprintf("a in uvm[%x]\n",a);
     mem = kalloc();
     if(mem == 0){
       cprintf("allocuvm out of memory\n");

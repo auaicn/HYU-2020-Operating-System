@@ -96,6 +96,7 @@ racingthreadmain(void *arg)
     gcnt = tmp;
   }
   thread_exit((void *)(tid+1));
+  return 0;
 }
 
 int
@@ -134,7 +135,9 @@ basicthreadmain(void *arg)
     }
   }
   thread_exit((void *)(tid+1));
+  return 0;
 }
+
 
 int
 basictest(void)
@@ -168,6 +171,7 @@ jointhreadmain(void *arg)
   sleep(200);
   printf(1, "thread_exit...\n");
   thread_exit((void *)(val*2));
+  return 0;
 }
 
 int
@@ -225,7 +229,9 @@ void*
 stressthreadmain(void *arg)
 {
   thread_exit(0);
+  return 0;
 }
+
 
 int
 stresstest(void)

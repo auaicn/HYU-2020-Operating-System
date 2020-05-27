@@ -83,6 +83,7 @@ struct proc {
   int tid;
   int num_thread;
   int ret_val[NTHREAD];
+  
   // Master thread would be index 0
   thread* threads[NTHREAD];
   int lock;
@@ -92,6 +93,8 @@ struct proc {
   // Debugging
   int first_scheduled;
   int from_trap;
+
+  struct proc* master_thread;
 
 };
 

@@ -7,13 +7,14 @@
 #endif
 
 #define NUM_THREAD (9)
-#define NUM_INCREASE (1000000000)
+#define NUM_INCREASE (10000000)
 
 int global_cnt = 0;
 
 int ret_val[NUM_THREAD];
 
 void* increase(void* arg){
+	printf(1,"entered start routine and back to user-level\n");
 	int* int_arg = (int*) arg;
 	//printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
 	printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
