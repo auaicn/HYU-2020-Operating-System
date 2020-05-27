@@ -167,7 +167,10 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void **arg)
   // Allocate two pages at the next page boundary.
   // Make the first inaccessible.  Use the second as the user stack.
 
-  char* sz = & (p->sz);
+  uint argc, sz, sp, ustack[3+MAXARG+1];
+  
+  //char* 
+  sz = & (p->sz);
   printf("initial sz : %x\n",sz);
   sz = PGROUNDUP(sz);
   printf("rounded sz : %x\n",sz);
@@ -180,13 +183,14 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void **arg)
   clearpteu(new_thread->pgdir,(char*)(sz - 2*PGSIZE));
 
   // now user stack initialization relative to newthread -> sp
-  char* sp = new_thread -> sp;
+  //char* 
+  sp = new_thread -> sp;
   //new_thread -> sp = sz;
 
   // argv last element has to be 0 or '\0' or so. change later in respect to convention.
   // Push argument strings, prepare rest of stack in ustack.
   // copyout 은 memcpy 비슷한건데 
-  int argc;
+  // int argc;
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
       goto bad;
@@ -214,7 +218,7 @@ thread_create(thread_t *thread, void* (*start_rountine)(void*), void **arg)
   new_thread -> sz += 4;
   */
 
-  
+
   for(int i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       new_thread->ofile[i] = filedup(p->ofile[i]);
