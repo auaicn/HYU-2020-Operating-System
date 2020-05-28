@@ -66,160 +66,208 @@ int min_pass;
 
 thread*
 allocthread(void)
-    {
+{
     struct proc *p;
     struct proc* curproc = myproc(); // caller, master thread
-    char *sp;
 
     acquire(&ptable.lock);
-
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == UNUSED)
-    goto found;
+        if(p->state == UNUSED)
+            goto found;
 
     release(&ptable.lock);
+    cprintf("UNUSED ptable entry not detected\n");
     return 0;
 
-    found:
+found:
     p->state = EMBRYO;
     p->pid = -1; // thread representation.
 
     release(&ptable.lock);
 
     // Allocate kernel stack.
-    if((p->kstack = kalloc()) == 0){
-    p->state = UNUSED;
-    return 0;
+    if((p -> kstack = kalloc()) == 0){
+        p -> state = UNUSED;
+        return 0;
     }
 
-    sp = p->kstack + KSTACKSIZE;
+    memset(p -> kstack, 0, PGSIZE);
+    p -> pgdir = curproc -> pgdir;  
+
+    //mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm)
+    /*
+    if(mappages(pgdir, (char*)a, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+        cprintf("allocuvm out of memory (2)\n");
+        deallocuvm(pgdir, newsz, oldsz);
+        kfree(mem);
+        return 0;
+    }
+    if(mappage(p->pgdir, p->kstack + PGSIZE, 4096, V2P(p->kstack), PTE_W)<0){
+        cprintf("allocuvm out of memory (2)\n");
+        kfree(p->kstack);
+        return 0; // failure
+    }
+    */
+
+    char *sp;
+    sp = p -> kstack + KSTACKSIZE;
 
     // TRAPFRAME setting
     sp -= sizeof *p->tf;
-    p->tf = (struct trapframe*)sp;
+    p -> tf = (struct trapframe*)sp;
+    *(p->tf) = *(myproc()->tf);
+   // memset(p->tf, 0, sizeof *p->tf);
 
-    // Set up new context to start executing at forkret,
-    // which returns to trapret.
+    // where to go after context change, forkret returns.
     sp -= 4;
     *(uint*)sp = (uint)trapret;
 
-    // struct context *context;     
+    // Set up new context to start executing at forkret,
     sp -= sizeof *p->context;
     p->context = (struct context*)sp;
-    memset(p->context, 0, sizeof *p->context);
-    p->context->eip = (uint)forkret;
+    *(p->context) = *(myproc()->context);
 
-    acquire(&ptable.lock);
-    curproc -> threads[++(curproc->num_thread)] = p;
+    // trapfram and context
+    // 1. typecast
+    // 2. copy master at first and then lets overwrite
 
-    release(&ptable.lock);
+    cprintf("fret %x\n",forkret);
+    p -> context -> eip = (uint)forkret;
 
     thread* t = (thread*) p;
-
     return t;
+
 }
 
-    // thread.c
 int 
 thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
 {
-    struct proc* p;
+
     struct proc* nt;
-    //thread* nt = NULL;
 
-    // TO ejfpaosf
-    p = myproc();
-
-    //if((nt = allocproc()) == 0)
-        //return -1;
+    struct proc* p = myproc();
 
     if((nt = allocthread()) == NULL)
         return -1;
 
-    if(p->multi_threaded == 0){
-        p->multi_threaded = 1;
-        p->master_thread = p; // itself. thread cannot call thread.
+    p -> threads[0] = p; // parent's masterthread is itself
+
+    /*
+    if(p -> multi_threaded == 0){
+        // single process became multi thread program
+
+        p->threads[0] = p; // itself
+        // p->master_thread = p; // itself. thread cannot call thread.
     }
+    */
 
+    cprintf("original master thread sz:%d\n",p->sz);
     nt -> multi_threaded = 1;
-
-    nt -> tid = p -> num_thread;
     nt -> master_thread = p;
 
-    // no parent
-    nt -> pgdir = p -> pgdir;
+    // oroginal proc structure variables
     nt -> chan = 0;
     nt -> killed = 0;
-    nt -> cwd = p ->cwd;
-    //nt -> sz = p -> sz;
+    nt -> cwd = p -> cwd;
+    nt -> num_thread = -1;
 
-    // memcpy(nt->tf,p->tf,sizeof(struct trapframe)); needed?
-    nt -> tf -> eip = (uint)start_routine;
-    cprintf("start_rountine changed\n");
+    // threads share pg dir
+    // actually essence of 
+    nt -> pgdir = p -> pgdir;
 
-    // Allocate two pages at the next page boundary.
-    // Make the first inaccessible.  Use the second as the user stack.
-
+    // copy of size
+    // used in allocuvm() call to get changed size and check them.
     int sz = p -> sz;
 
-    // actually, rounded up value is alreay stored. 
+    // actually, rounded up value is alreay stored. (round not needed)
     sz = PGROUNDUP(sz);
-    // cprintf("rounded sz : %x\n",sz);
-    if((sz = allocuvm(nt->pgdir, sz, sz + 2*PGSIZE)) == 0)
+    nt -> pgdir = p -> pgdir;
+
+    if((sz = allocuvm(nt -> pgdir, sz, sz + 2*PGSIZE)) == 0)
         panic("allocuvm");
 
+    // parent has to know increased user memory size.
+    // thread cannot be more than one for now
+    // apply new total allocated size
     p -> sz = sz;
+    nt -> sz = sz;
+
+    cprintf("changed master,new thread sz:%d\n",p->sz);
+
+    // top of kstack is saved in kstack var.
+    // other process's (init,bash) is observed to have
+    // lowest 3 bit equals 0 (in hex representation)
+    // 'bottom' is more exact explanation maybe.
+    // 'bottom' has highest value. esp decreases as stack grows.
+    nt -> kstack = (char*)sz;
 
     // newsz = oldsz + 2*PGSIZE
     // [oldsz:oldsz+PGSIZE] cleared
-
+    // [oldsz+PGSIZE:oldsz+2PGSIZE] will be used as own user stack for new thread.
+    // reusable maybe but later.
     clearpteu(p->pgdir,(char*)(p -> sz - 2*PGSIZE));
 
-    // argv last element has to be 0 or '\0' or so. change later in respect to convention.
-
+    // only one argument available for now.
     int ustack[2];
 
-    //nt -> kstack = (char*)PGSIZE; 
-
-    ustack[0] = (uint)thread_exit;
-    ustack[1] = (uint)arg;
-
-    nt -> pgdir = p -> pgdir;
-    // nt -> sz = p -> sz;
-    // tf -> esp has to point user stack!!? maybe yes.
-
-    // nt -> tf -> esp = 2 * PGSIZE;
-    // nt -> tf -> esp = sz - PGSIZE;
-    nt -> sz = p -> sz; // actually needed?
-    nt -> tf -> esp = p -> sz;
-    nt -> tf -> esp -= 2 * sizeof(int);
-
+    // int* argv = (int*) arg;
+    // ustack[0] = (uint)thread_exit; // auto clear it not called explicitly
+    ustack[0] = 0xFFFFFFFF;// (int)thread_exit;
+    ustack[1] = (uint) ((int*)arg)[0]; 
+   
     if(copyout(p->pgdir, nt -> tf -> esp, ustack, 2 * 4) < 0)
         panic("copyout");
 
-    cprintf("first copyout ez\n");
+    // tf -> esp has to point user stack!!? maybe yes.
+    // 'top' of stack.
+    // two elements in. 
+    // one for fake (or later thread_exit())
+    // another for argument passed from user of master_thread.
+    nt -> tf -> esp = p -> sz;
+    nt -> tf -> esp -= 2 * sizeof(int);
 
-    int sp = 0;
-    nt -> sz = sz;
-    nt -> kstack = (char*) sp;
-    nt -> tf -> ebp = nt -> tf -> esp;
+    // routine to execute after it goes to user mode
+    nt -> tf -> eip = (uint)start_routine;
 
+
+    // file duplication. same with fork
     for(int i = 0; i < NOFILE; i++)
         if(p->ofile[i])
             nt->ofile[i] = filedup(p->ofile[i]);
     nt->cwd = idup(p->cwd);
 
-    // for debugginh
+    // for debugging
     safestrcpy(nt->name, p->name, sizeof(p->name));
 
+    
+    // critical section
+    // proc.multi_threaded variable is ciritcal to flow 
+    // in 'trap.c' and 'scheduler'
     acquire(&ptable.lock);
-    // scheduler do not picks thread.
-    nt->state = SLEEPING;
+    p -> multi_threaded = 1; // critical in flow
+
+    // number of thread and table of threads adjusted here
+    // or table adjusting would intervened by lookup in the threads.
+
+    p -> num_thread++;
+    p -> threads[p -> num_thread] = nt;
+    nt -> tid = p -> num_thread;
+    
+    nt -> state = RUNNABLE;
     release(&ptable.lock);
 
-    cprintf("thread ALLOCED with tid[%d]\n",p->tid);
-    cprintf("pid[%d] sz[%x] kstack[%x]\n",p->pid,p->sz,p->kstack);
-    cprintf("master_thread[%x] num_thread[%d] pgdir[%x]\n",p->master_thread,p->num_thread,p->pgdir);
+    // master
+    cprintf("[master info]  tid[%d] ",p->tid);
+    cprintf("master pid[%d] sz[%x] kstack[%x] ",p->master_thread->pid,p->sz,p->kstack);
+    cprintf("pgdir[%x]\n",p->pgdir);
+
+    // working
+    cprintf("[thread allocated] with tid[%d] pid[%d] ",nt->tid,nt->pid);
+    cprintf("master pid[%d] sz[%x] kstack[%x] ",nt->master_thread->pid,nt->sz,nt->kstack);
+    cprintf("pgdir[%x]\n",nt->pgdir);
+
+    *thread = nt->tid;
+    cprintf("retval : %d\n,",*thread);
 
     return 0; // success
 }
@@ -309,15 +357,15 @@ set_cpu_share(int share)
     struct proc* mlfq = stable.proc[0];
 
     if (mlfq -> share - share < 20 || share < 0){
-    cprintf("proc.c:set_cpu_share:: unable to set cpu share\n");
-    return -1;
+        cprintf("proc.c:set_cpu_share:: unable to set cpu share\n");
+        return -1;
     }
 
     acquire(&ptable.lock);
     struct proc* p= myproc();
 
     if(p -> tid)
-    p = p -> parent;
+        p = p -> parent;
 
     stable.proc[++stable.stable_size] = p;
 
@@ -327,12 +375,12 @@ set_cpu_share(int share)
 
     // dequeue from q
     for (int i=0;i<=ptable.q_size[p->lev];i++){
-    if(p == ptable.ARRAYQUEUE[p->lev][i]){
-    ptable.q_size[p->lev]--;
-    for (int j=i;j<=ptable.q_size[p->lev];j++)
-    ptable.ARRAYQUEUE[p->lev][j] = ptable.ARRAYQUEUE[p->lev][j+1];
-    break;
-    }
+        if(p == ptable.ARRAYQUEUE[p->lev][i]){
+            ptable.q_size[p->lev]--;
+            for (int j=i;j<=ptable.q_size[p->lev];j++)
+                ptable.ARRAYQUEUE[p->lev][j] = ptable.ARRAYQUEUE[p->lev][j+1];
+            break;
+        }
     }
 
     // clear variables associated to MLFQ
@@ -405,13 +453,13 @@ allocproc(void)
     acquire(&ptable.lock);
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == UNUSED)
-    goto found;
+        if(p->state == UNUSED)
+            goto found;
 
     release(&ptable.lock);
     return 0;
 
-    found:
+found:
     p->state = EMBRYO;
     p->pid = nextpid++;
 
@@ -453,6 +501,8 @@ allocproc(void)
 
     // debugging testcase
     p -> first_scheduled = 0;
+    p -> master_thread = p;
+    p -> tid = 0;
 
     acquire(&ptable.lock);
     ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
@@ -466,7 +516,7 @@ allocproc(void)
 void
 userinit(void)
     {
-    cprintf("[USERINIT]Entering\n");
+    //cprintf("[USERINIT]Entering\n");
     struct proc *p;
     extern char _binary_initcode_start[], _binary_initcode_size[];
 
@@ -505,8 +555,11 @@ userinit(void)
 
     release(&ptable.lock);
 
-    cprintf("[USERINIT]Escaping\n");
-    }
+    cprintf("[init process allocated] with pid[%d] ",p->pid);
+    cprintf("master pid[%d] sz[%x] kstack[%x] ",p->master_thread->pid,p->sz,p->kstack);
+    cprintf("pgdir[%x]\n",p->pgdir);
+
+}
 
 // Grow current process's memory by n bytes.
 // Return 0 on success, -1 on failure.
@@ -529,12 +582,12 @@ growproc(int n)
     return 0;
 }
 
-    // Create a new process copying p as the parent.
-    // Sets up stack to return as if from system call.
-    // Caller must set state of returned proc to RUNNABLE.
-    int
-    fork(void)
-    {
+// Create a new process copying p as the parent.
+// Sets up stack to return as if from system call.
+// Caller must set state of returned proc to RUNNABLE.
+int
+fork(void)
+{
     int i, pid;
     struct proc *np;
     struct proc *curproc = myproc();
@@ -554,6 +607,7 @@ growproc(int n)
     np->sz = curproc->sz;
     np->parent = curproc;
     *np->tf = *curproc->tf;
+    // cprintf("[fork]oldpgdir %x, newpgdir %x\n",curproc->pgdir,np->pgdir);
 
     // Clear %eax so that fork returns 0 in the child.
     np->tf->eax = 0;
@@ -576,15 +630,20 @@ growproc(int n)
     np->state = RUNNABLE;
     release(&ptable.lock);
 
-    return pid;
-    }
+    cprintf("[fork process allocated] with pid[%d] ",np->pid);
+    cprintf("master pid[%d] sz[%x] kstack[%x] ",np->master_thread->pid,np->sz,np->kstack);
+    cprintf("pgdir[%x]\n",np->pgdir);
 
-    // Exit the current process.  Does not return.
-    // An exited process remains in the zombie state
-    // until its parent calls wait() to find out it exited.
-    void
-    exit(void)
-    {
+
+    return pid;
+}
+
+// Exit the current process.  Does not return.
+// An exited process remains in the zombie state
+// until its parent calls wait() to find out it exited.
+void
+exit(void)
+{
     struct proc *curproc = myproc();
     struct proc *p;
     int fd;
@@ -660,13 +719,13 @@ growproc(int n)
     curproc->state = ZOMBIE;
     sched();
     panic("zombie exit");
-    }
+}
 
-    // Wait for a child process to exit and return its pid.
-    // Return -1 if this process has no children.
-    int
-    wait(void)
-    {
+// Wait for a child process to exit and return its pid.
+// Return -1 if this process has no children.
+int
+wait(void)
+{
     struct proc *p;
     int havekids, pid;
     struct proc *curproc = myproc();
@@ -722,12 +781,12 @@ growproc(int n)
     p->time_allotment = time_allotment[0];
     }
     release(&ptable.lock);
-    }
+}
 
 
 void
 scheduler(void)
-    {
+{
     struct proc *p;
     struct cpu *c = mycpu();
     c->proc = 0;
@@ -737,6 +796,8 @@ scheduler(void)
 
     // virtual process in STRIDE table
     // if the process is chosed, MLFQ scheduling is done.
+
+    //cprintf("[Location] forkret() : %x\n",forkret);
 
     struct proc mlfq;
     mlfq.share = 100;
@@ -774,71 +835,66 @@ scheduler(void)
         int found = 0;
         if(min_index == 0){
         // MLFQ scheduling
-        for(i = 0; i < DEPTH_QUEUE; i++){
-            for (j = 0; j <= ptable.q_size[i]; j++){
-                p = ptable.ARRAYQUEUE[i][j];
-                if(p->state != RUNNABLE)
-                    continue;
-                if(p->share)
-                    continue;
-                found = 1;
+            for(i = 0; i < DEPTH_QUEUE; i++){
+                for (j = 0; j <= ptable.q_size[i]; j++){
+                    p = ptable.ARRAYQUEUE[i][j];
+                    if(p->state != RUNNABLE)
+                        continue;
+                    if(p->share)
+                        continue;
+                    found = 1;
+                    break;
+                }
+            if(found)
                 break;
             }
-        if(found)
-            break;
-        }
-    }
-
-    // here RUNNABLE check is needed.
-    // because there may no runnable process.
-
-    if(p->state==RUNNABLE){
-        if(p->first_scheduled == 0){
-            cprintf("pid[%d] sz[%x] kstack[%x]\n",p->pid,p->sz,p->kstack);
-            cprintf("master_thread[%x] num_thread[%d] pgdir[%x]\n",p->master_thread,p->num_thread,p->pgdir);
-            //cprintf("inode[%d] sz[%x] kstack[%x]\n",namei(p->cwd),p->sz,p->kstack);
-            p->first_scheduled = 1;
-        }
-        /*
-        if(p->share==0)
-        cprintf("[M%d]",p->pid);
-        else
-        cprintf("[S%d]",p->pid);
-        */
-        /*
-        if(p->share==0){
-        cprintf("lev[%d]",p->lev);
-        for (int i=0;i<p->time_allotment;i++)
-        cprintf("*");
-        cprintf("\n");
-        }
-        */
-
-
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
-
-        // start_tick is used for MLFQ but not matters 
-        // even if we include it to STRIDE
-        p->start_tick = MLFQ_ticks;
-
-        c->proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
-
-        swtch(&(c->scheduler), p->context);
-        switchkvm();
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
         }
 
+        // here RUNNABLE check is needed.
+        // because there may no runnable process.
 
+        if(p->state==RUNNABLE){
+            if(p->first_scheduled == 0){
+                p->first_scheduled = 1;
+            }
+            /*
+            if(p->share==0)
+            cprintf("[M%d]",p->pid);
+            else
+            cprintf("[S%d]",p->pid);
+            */
+            /*
+            if(p->share==0){
+            cprintf("lev[%d]",p->lev);
+            for (int i=0;i<p->time_allotment;i++)
+            cprintf("*");
+            cprintf("\n");
+            }
+            */
+
+
+            // Switch to chosen process.  It is the process's job
+            // to release ptable.lock and then reacquire it
+            // before jumping back to us.
+
+            // start_tick is used for MLFQ but not matters 
+            // even if we include it to STRIDE
+            p->start_tick = MLFQ_ticks;
+
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+
+            swtch(&(c->scheduler), p->context);
+            switchkvm();
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+        }
         release(&ptable.lock);
-        }
     }
+}
 
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -865,6 +921,14 @@ sched(void)
     intena = mycpu()->intena;
     swtch(&p->context, mycpu()->scheduler);
     mycpu()->intena = intena;
+}
+
+void
+thread_switch(thread* old, thread* new)
+{
+    acquire(&ptable.lock);
+    old->state = RUNNABLE;
+    release(&ptable.lock);
 }
 
 // Give up the CPU for one scheduling round.
@@ -929,6 +993,8 @@ yield(void)
 
 
     sched();
+
+    cprintf("releasing\n");
     release(&ptable.lock);
 }
 
@@ -937,28 +1003,44 @@ yield(void)
 void
 forkret(void)
 {
+    /*
+    cprintf("FORKRET pid[%d]tid[%d]\n",myproc()->pid,myproc()->tid);
+    */
+    if(myproc()){
+        //if((myproc() -> pid) == -1)
+            cprintf("thread[%d] entering forkret()\n",myproc()->tid);
+        //else
+            cprintf("process[%d] entering forkret()\n",myproc()->pid);
+    }
+
     static int first = 1;
     // Still holding ptable.lock from scheduler.
     release(&ptable.lock);
-
     if (first) {
-    // Some initialization functions must be run in the context
-    // of a regular process (e.g., they call sleep), and thus cannot
-    // be run from main().
-    first = 0;
-    iinit(ROOTDEV);
-    initlog(ROOTDEV);
+        // Some initialization functions must be run in the context
+        // of a regular process (e.g., they call sleep), and thus cannot
+        // be run from main().
+        first = 0;
+        iinit(ROOTDEV);
+        initlog(ROOTDEV);
     }
-    cprintf("[FORKRET]ESCAPING\n");
+    /*
+    if(myproc()){
+        if((myproc() -> pid) == -1)
+            cprintf("thread[%d] escaping forkret()\n",myproc()->tid);
+        else
+            cprintf("process[%d] escaping forkret()\n",myproc()->pid);
+    }
+    */
 
     // Return to "caller", actually trapret (see allocproc).
-    }
+}
 
-    // Atomically release lock and sleep on chan.
-    // Reacquires lock when awakened.
-    void
-    sleep(void *chan, struct spinlock *lk)
-    {
+// Atomically release lock and sleep on chan.
+// Reacquires lock when awakened.
+void
+sleep(void *chan, struct spinlock *lk)
+{
     struct proc *p = myproc();
 
     if(p == 0)

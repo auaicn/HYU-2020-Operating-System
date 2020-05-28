@@ -100,6 +100,8 @@ exec(char *path, char **argv)
   curproc->tf->eip = elf.entry;  // main
   curproc->tf->esp = sp;
   switchuvm(curproc);
+  // cprintf("[exec]oldpgdir %x, newpgdir %x\n",oldpgdir,pgdir);
+
   freevm(oldpgdir);
   return 0;
 

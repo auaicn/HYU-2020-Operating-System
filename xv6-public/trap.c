@@ -150,23 +150,27 @@ trap(struct trapframe *tf)
 
     // MLFQ, STRIDE, single Threaded, MultiThreaded Process(Thread) have time quantom
 
-    if(p -> num_thread == 0){
-      p -> time_allotment--; // anyway
+    if(p -> multi_threaded == 0){
+      // Single Threaded
+
+      // time alootment decreased
+      p -> time_allotment--; 
+
       /*
       //if(p -> share == 0){
         cprintf("pid[%d]lev[%d]",p->pid,p->lev);
         for (int i=0;i<p->time_allotment;i++)
           cprintf("*");
         cprintf("\n");
-      // Single Threaded
-      //}
-        */
+      }
+      */  
+
       if(( p->time_allotment % time_quantom[p->lev] ) != 0){
         // Time LEFT
+        // do not sched
         return;
       }else{
-        // cprintf("yield\n");
-        // Time Finished 
+        // alloted time quantom Finished 
         // yield will do extra jobs
         // MLFQ, Queue adjusting
         // STRIDE, time allotment resotration
@@ -174,40 +178,47 @@ trap(struct trapframe *tf)
         yield();
       }
       
-    }else
-    {
+    }else {
       // Multi threaded
       // Yield only if in finishes it's time quantom. 
-      p->time_allotment--; // anyway
+      cprintf("T interrupt after multi_threaded pid%d\n",myproc()->pid);
+
+      p->time_allotment--;
       if( (p->time_allotment%time_quantom[p->lev])!=0 ){
-        // Time LEFT
-        // Return is not desirable
-        // return;
 
+        // Time quantom left
         // Switching between LWPS
-        struct proc* pp = p->parent;
-        thread* nt = NULL;
+        thread* mthread = p -> master_thread;
+        thread* next_th = NULL;
+        // cprintf("mid[%d]tid[%d] num_thread[%d][%d]\n",mthread->pid,p->tid,mthread->num_thread,p->num_thread);
+        for (int i=0;i<=mthread->num_thread;i++){
 
-        // Just Lookaside is OK?
-        // acquire(&ptable.lock);
+            // idx for round robin implementation            
+            int idx = (p->tid+(i+1))%(mthread -> num_thread + 1);
+            // cprintf("idx : %d\n",idx);
+            next_th = p->threads[idx];
 
-        for (int i=1;i<=pp->num_thread;i++){
+            // if(next_th->state!=RUNNABLE)
+                //continue;
 
-          int idx = (p->tid+i)%pp->num_thread+1;
-          cprintf("[%d/%d]\n",idx,pp->num_thread);
-          nt = pp->threads[idx];
-          
-          if(nt->state!=RUNNABLE)
-            continue;
-          else{
-            p->state = RUNNABLE;
-            swtch(&p->context, nt->context);
+            // thread to run found
+
+            // ptable lock needed but not accessible here
+            p -> state = RUNNABLE;
+
+            //cprintf("pid[%d]tid[%d] giving up cpu\n",p->pid,p->tid);
+            cprintf("tid[%d] to tid[%d] giving up cpu\n",p->tid,next_th->tid);
+            swtch(&(p->context), next_th->context);
+            cprintf("pid[%d]tid[%d] retrieved cpu\n",p->pid,p->tid);
+
             return;
-          }
         }
+
         panic("thread to run not found");
 
       }else{
+        cprintf("yield\n");
+
         // Time Finished yield will do extra jobs
         // MLFQ, Queue adjusting
         // STRIDE, time allotment resotration
@@ -216,6 +227,9 @@ trap(struct trapframe *tf)
         // context switching between scheduler and 
         // but I think it would not make any issues.
         p->from_trap = 1;
+
+        // do not directly switching from working thread to 
+        // swtch(&(p->context),p->parent->context);
         yield();
       }
     }

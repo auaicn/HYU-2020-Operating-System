@@ -6,7 +6,7 @@
 #define NULL		 ((void*)0)
 #endif
 
-#define NUM_THREAD (9)
+#define NUM_THREAD (1)
 #define NUM_INCREASE (10000000)
 
 int global_cnt = 0;
@@ -18,7 +18,7 @@ void* increase(void* arg){
 	int* int_arg = (int*) arg;
 	//printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
 	printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
-
+	
 	for (int i=0;i<int_arg[0];i++){
 		global_cnt++;
 	}
@@ -38,13 +38,14 @@ int main(int argc, char const *argv[])
 	//thread_mutex_init(&my_lock,NULL);
 
 	printf(1,"[%s Thread] pid[%d]\n","Master",getpid());
+	//printf(1,"start routine in user, integer %d\n",(int)increase);
 
 	int arg[NUM_THREAD][2];
 	for (int i=0;i<NUM_THREAD;i++)
 		arg[i][0] = NUM_INCREASE;
 
 	for (int i = 0; i < NUM_THREAD; i++){
-		arg[i][1] = (i+1)*(i+1);
+		arg[i][1] = (i+2)*(i+2);
 		int ret = thread_create(&pid[i], &increase, (void*)arg[i]);
 		if(!ret)
 			continue;
