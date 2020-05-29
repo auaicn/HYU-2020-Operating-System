@@ -28,8 +28,21 @@ uint MLFQ_ticks;
 #define PERIOD_BOOSTING (200)
 #endif
 
+#ifndef DEPTH_QUEUE
+#define DEPTH_QUEUE (3)
+#endif
+
 int time_quantom[10] = {5,10,20};
 int time_allotment[10] = {20,40,0};
+
+#ifndef ptable_struct
+struct ptable_struct{
+struct spinlock lock;
+struct proc proc[NPROC];
+struct proc* ARRAYQUEUE[DEPTH_QUEUE][NPROC];
+int q_size[DEPTH_QUEUE];
+};
+#endif
 
 void
 tvinit(void)
@@ -181,39 +194,72 @@ trap(struct trapframe *tf)
     }else {
       // Multi threaded
       // Yield only if in finishes it's time quantom. 
-      cprintf("T interrupt after multi_threaded pid%d\n",myproc()->pid);
+      // cprintf("T interrupt after multi_threaded pid%d\n",myproc()->pid);
 
-      p->time_allotment--;
-      if( (p->time_allotment%time_quantom[p->lev])!=0 ){
+      thread* mthread = p -> master_thread;
+      mthread->time_allotment--;
+
+      if( (mthread -> time_allotment % time_quantom[p->lev])!=0 ){
 
         // Time quantom left
         // Switching between LWPS
-        thread* mthread = p -> master_thread;
         thread* next_th = NULL;
-        // cprintf("mid[%d]tid[%d] num_thread[%d][%d]\n",mthread->pid,p->tid,mthread->num_thread,p->num_thread);
+        
+        // what yield does with lock
+        acquire(&(ptable.lock));
+        p -> state = RUNNABLE; 
+        release(&ptable.lock);
+
         for (int i=0;i<=mthread->num_thread;i++){
 
             // idx for round robin implementation            
             int idx = (p->tid+(i+1))%(mthread -> num_thread + 1);
-            // cprintf("idx : %d\n",idx);
-            next_th = p->threads[idx];
+            next_th = mthread->threads[idx];
+            // cprintf("runnable%d running%d sleeping%d\n",RUNNABLE,RUNNING,SLEEPING);
+            // cprintf("%d, state %d \n",idx,next_th->state);
 
-            // if(next_th->state!=RUNNABLE)
-                //continue;
+            if(next_th->state!=RUNNABLE)
+                continue;
 
             // thread to run found
-
             // ptable lock needed but not accessible here
-            p -> state = RUNNABLE;
+            // 1. import ptable with extern keyword 
+            //    and make some acquire release wrapper function..
+            // 2. make thread state. but need locking needed.. maybe
+            //    because many threads can look through it.
+            // 3. Not implement locking
+            //    it's critical section but thread table lookup is only done here
+            //    also thread-thread communication not needed for now!
 
-            //cprintf("pid[%d]tid[%d] giving up cpu\n",p->pid,p->tid);
+            // what scheduler does before swtching
+            // no access to ptable lock but I think it's not needed.
+            // although, state trasition may need it.
+            
+            acquire(&(ptable.lock));
+            mycpu()->proc = next_th;
+            next_th -> state = RUNNING;
+            release(&(ptable.lock));
+
+            // we cannot avoid forkret?
+            // I insisted to use forkret to release!
+            // but actually, not needed.
+            // need doing-nothing function maybe it would be better
+
             cprintf("tid[%d] to tid[%d] giving up cpu\n",p->tid,next_th->tid);
             swtch(&(p->context), next_th->context);
-            cprintf("pid[%d]tid[%d] retrieved cpu\n",p->pid,p->tid);
 
+            cprintf("myproc pid tid %d %d\n",myproc()->pid,myproc()->tid);
+            /*
+            cprintf("pid[%d]tid[%d] retrieved cpu\n",p->pid,p->tid);
+            cprintf("next_th pid[%d]tid[%d] \n",next_th->pid,next_th->tid);
+            cprintf("master pid[%d] sz[%x] kstack[%x] ",p->master_thread->pid,p->master_thread->sz,p->master_thread->kstack);
+            cprintf("pgdir[%x]\n",p->pgdir);
+            */
             return;
         }
 
+        // thread to run not found
+        // with sleep implementation maybe later can be?
         panic("thread to run not found");
 
       }else{

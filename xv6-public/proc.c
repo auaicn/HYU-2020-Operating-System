@@ -15,7 +15,7 @@
 #define STRIDE_LEV (9)
 
 
-struct {
+struct ptable_struct{
 struct spinlock lock;
 struct proc proc[NPROC];
 struct proc* ARRAYQUEUE[DEPTH_QUEUE][NPROC];
@@ -34,6 +34,8 @@ int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
 static void wakeup1(void *chan);
+void do_nothing(void);
+
 
 int min_pass;
 
@@ -131,8 +133,10 @@ found:
     // 1. typecast
     // 2. copy master at first and then lets overwrite
 
-    cprintf("fret %x\n",forkret);
-    p -> context -> eip = (uint)forkret;
+    // cprintf("fret %x\n",forkret);
+    //p -> context -> eip = (uint)forkret;
+    p -> context -> eip = (uint)do_nothing;
+    // p -> context -> esp = sp;
 
     thread* t = (thread*) p;
     return t;
@@ -161,7 +165,8 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     }
     */
 
-    cprintf("original master thread sz:%d\n",p->sz);
+    // cprintf("original master thread sz:%d\n",p->sz);
+
     nt -> multi_threaded = 1;
     nt -> master_thread = p;
 
@@ -192,30 +197,37 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     p -> sz = sz;
     nt -> sz = sz;
 
-    cprintf("changed master,new thread sz:%d\n",p->sz);
+    // cprintf("changed master,new thread sz:%d\n",p->sz);
 
     // top of kstack is saved in kstack var.
     // other process's (init,bash) is observed to have
     // lowest 3 bit equals 0 (in hex representation)
     // 'bottom' is more exact explanation maybe.
     // 'bottom' has highest value. esp decreases as stack grows.
-    nt -> kstack = (char*)sz;
+    // nt -> kstack = (char*)sz;
 
     // newsz = oldsz + 2*PGSIZE
     // [oldsz:oldsz+PGSIZE] cleared
     // [oldsz+PGSIZE:oldsz+2PGSIZE] will be used as own user stack for new thread.
     // reusable maybe but later.
-    clearpteu(p->pgdir,(char*)(p -> sz - 2*PGSIZE));
+    // clearpteu(p->pgdir,(char*)(p -> sz - 2*PGSIZE));
+
+    int argc = 2;
 
     // only one argument available for now.
-    int ustack[2];
+    int ustack[2 + 1];
 
     // int* argv = (int*) arg;
     // ustack[0] = (uint)thread_exit; // auto clear it not called explicitly
-    ustack[0] = 0xFFFFFFFF;// (int)thread_exit;
+    // ustack[0] = 0xFFFFFFFF;// (int)thread_exit;
+    ustack[0] = (int)thread_exit;
     ustack[1] = (uint) ((int*)arg)[0]; 
-   
-    if(copyout(p->pgdir, nt -> tf -> esp, ustack, 2 * 4) < 0)
+    ustack[2] = (uint) ((int*)arg)[1]; 
+
+    // cprintf("%d %d\n",ustack[1],ustack[2]);
+    // well done
+
+    if(copyout(p->pgdir, nt -> tf -> esp, ustack, (argc+1) * 4) < 0)
         panic("copyout");
 
     // tf -> esp has to point user stack!!? maybe yes.
@@ -224,7 +236,7 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     // one for fake (or later thread_exit())
     // another for argument passed from user of master_thread.
     nt -> tf -> esp = p -> sz;
-    nt -> tf -> esp -= 2 * sizeof(int);
+    nt -> tf -> esp -= (argc + 1) * sizeof(int);
 
     // routine to execute after it goes to user mode
     nt -> tf -> eip = (uint)start_routine;
@@ -262,7 +274,7 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     cprintf("pgdir[%x]\n",p->pgdir);
 
     // working
-    cprintf("[thread allocated] with tid[%d] pid[%d] ",nt->tid,nt->pid);
+    cprintf("[thread allo]  tid[%d] pid[%d] ",nt->tid,nt->pid);
     cprintf("master pid[%d] sz[%x] kstack[%x] ",nt->master_thread->pid,nt->sz,nt->kstack);
     cprintf("pgdir[%x]\n",nt->pgdir);
 
@@ -274,57 +286,109 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
 
 void 
 thread_exit(void *retval)
-    {
+{
     struct proc * curproc;
-
     curproc = myproc();
 
+    cprintf("T[%d] called thread_exit\n", myproc()->tid);
+
+    acquire(&ptable.lock);
     // working thread become zombie. exit of master thread will deal with it
     curproc -> state = ZOMBIE;
-
-    curproc -> ret_val[curproc->tid] = *(int*)retval;
+    curproc -> master_thread -> ret_val[curproc->tid] = *(int*)retval;
+    release(&ptable.lock);
 
     wakeup1(curproc->parent);
 
     // after signal, parent can know the retval through tid.
+    
+    /*
+    acquire(&ptable.lock);
     sched();
+    */
+
+    yield();
     panic("[THREAD]zombie exit");
 
     // NO return
-    }
+    // more precisely, must not scheduled and returned.
+    // its' state is ZOMBIE, not to be scheduled.
+}
 
-    int
-    thread_join(thread_t threadid, void **retval)
-    {
+int
+thread_join(thread_t threadid, void **retval)
+{
+
     struct proc * curproc;
     curproc = myproc();
 
-
     // cleanup Kernel stack and User Stack
-    kfree(curproc -> kstack);
+    // kfree(curproc -> kstack);
 
     // kfree(curproc -> sz);
     // Never. Violation could happen later.
     // I'm using Master thread(initially Single Process)'s Userstack
     // as thread's own stack.
 
-    sleep(curproc,NULL);
 
-    /*
-    for (int i=0;i<curproc->num_thread;i++)
-    {
-    if()
+    cprintf("master goinging to sleep\n");
+    int found = 0;
+    int gosleep = 1;
+
+    if(curproc->threads[threadid]->state == ZOMBIE){
+        gosleep = 0;
+        found = 1;
+        cprintf("working thread already terminated. immediate return\n");
     }
-    */
 
-    *(int*)retval = curproc->ret_val[threadid];
-    return 0; // success
+    // thread table adjustment here.
+    for(;;){
+
+        // acquiresleep(&ptable.lock);
+        if(gosleep){
+            cprintf("master woke from sleep\n");
+            sleep(curproc,NULL);
+            cprintf("master woke from sleep\n");
+            acquire(&ptable.lock);
+        }
+        // other thread's signal could wake up this process.
+            
+        thread* lookup = curproc->threads[threadid];
+        cprintf("lookup : state %d, tid %d\n",lookup->state,lookup->tid);
+        if(lookup->state == ZOMBIE){
+            found = 1;
+            kfree(lookup->kstack);
+            // *(int*)retval = (int*)(curproc -> ret_val[threadid]);
+            *(int*)retval = curproc -> ret_val[threadid];
+
+            // adjusting thread table
+            curproc->num_thread--;
+            for (int j=threadid;j<curproc->num_thread;j++){
+                curproc->threads[j] = curproc->threads[j+1];
+                curproc->threads[j] -> tid = j;
+                curproc->ret_val[j] = curproc->ret_val[j+1];
+            }
+
+            if(curproc->num_thread == 0)
+                curproc->multi_threaded = 0;
+
+            release(&ptable.lock);
+        }
+
+        if(found)
+            break;
+
+    }
+    cprintf("thread exit escaping\n");
+
+    return 0; 
+    // success
 }
 
 
 
 
-    /*      THREAD        */
+/*      THREAD        */
 
 
 void
@@ -654,10 +718,10 @@ exit(void)
 
     // Close all open files.
     for(fd = 0; fd < NOFILE; fd++){
-    if(curproc->ofile[fd]){
-    fileclose(curproc->ofile[fd]);
-    curproc->ofile[fd] = 0;
-    }
+        if(curproc->ofile[fd]){
+            fileclose(curproc->ofile[fd]);
+            curproc->ofile[fd] = 0;
+        }
     }
 
     begin_op();
@@ -673,45 +737,39 @@ exit(void)
     // current process may
     // Pass abandoned children to init.
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->parent == curproc){
-    p->parent = initproc;
-    if(p->state == ZOMBIE)
-    wakeup1(initproc);
-    }
+        if(p->parent == curproc){
+            p->parent = initproc;
+        if(p->state == ZOMBIE)
+            wakeup1(initproc);
+        }
     }
 
     struct proc* t;
     if(curproc -> share == 0){
+        // MLFQ scheduled process exits
 
-    // MLFQ scheduled process exits
-    for (int i=0;i<=ptable.q_size[curproc->lev];i++){
-
-    t = ptable.ARRAYQUEUE[curproc->lev][i];
-    if(t == curproc){
-    ptable.q_size[curproc->lev]--;
-    for (int j=i;j<=ptable.q_size[curproc->lev];j++)
-    ptable.ARRAYQUEUE[curproc->lev][j] = ptable.ARRAYQUEUE[curproc->lev][j+1];
-
-    break;
-    }
-
-    }
+        for (int i=0;i<=ptable.q_size[curproc->lev];i++){
+            t = ptable.ARRAYQUEUE[curproc->lev][i];
+            if(t == curproc){
+                ptable.q_size[curproc->lev]--;
+                for (int j=i;j<=ptable.q_size[curproc->lev];j++)
+                    ptable.ARRAYQUEUE[curproc->lev][j] = ptable.ARRAYQUEUE[curproc->lev][j+1];
+                break;
+            }
+        }
     }else{
-
-    // STRIDE scheduled process exits
-    for (int i=0;i<=stable.stable_size;i++){
-
-    t = stable.proc[i];
-    if(t == curproc){
-    stable.stable_size--;
-    for (int j=i;j<=stable.stable_size;j++)
-    stable.proc[j] = stable.proc[j+1];
-
-    break;
-    }
-
-    }
-    stable.proc[0]->share += curproc->share;
+        // STRIDE scheduled process exits
+       
+        for (int i=0;i<=stable.stable_size;i++){
+        t = stable.proc[i];
+        if(t == curproc){
+            stable.stable_size--;
+            for (int j=i;j<=stable.stable_size;j++)
+                stable.proc[j] = stable.proc[j+1];
+            break;
+            }
+        }
+        stable.proc[0]->share += curproc->share;
     }
     //queue_table_lookup();
 
@@ -956,7 +1014,6 @@ yield(void)
 
     if(p->share==0){
 
-
         // MLFQ
         int lev_pre = p->lev;
 
@@ -1000,20 +1057,33 @@ yield(void)
 
 // A fork child's very first scheduling by scheduler()
 // will swtch here.  "Return" to user space.
+
+
+// [Thread] we cannot avoid forkret?
+// I insisted to use forkret to release!
+// but actually, not needed.
+// need doing-nothing function maybe it would be better
+
+void
+do_nothing(void)
+{
+    cprintf("donothing\n");
+}
+
 void
 forkret(void)
 {
     /*
-    cprintf("FORKRET pid[%d]tid[%d]\n",myproc()->pid,myproc()->tid);
-    */
     if(myproc()){
-        //if((myproc() -> pid) == -1)
+        if((myproc() -> pid) == -1)
             cprintf("thread[%d] entering forkret()\n",myproc()->tid);
-        //else
+        else
             cprintf("process[%d] entering forkret()\n",myproc()->pid);
     }
+    */
 
     static int first = 1;
+
     // Still holding ptable.lock from scheduler.
     release(&ptable.lock);
     if (first) {
@@ -1024,6 +1094,7 @@ forkret(void)
         iinit(ROOTDEV);
         initlog(ROOTDEV);
     }
+
     /*
     if(myproc()){
         if((myproc() -> pid) == -1)

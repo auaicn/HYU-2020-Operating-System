@@ -83,6 +83,7 @@ struct proc {
   int tid;
   int num_thread;
   int ret_val[NTHREAD];
+  //void* ret_val[NTHREAD];
   
   // Master thread would be index 0
   thread* threads[NTHREAD];

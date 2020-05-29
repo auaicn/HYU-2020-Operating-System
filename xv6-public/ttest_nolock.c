@@ -6,7 +6,7 @@
 #define NULL		 ((void*)0)
 #endif
 
-#define NUM_THREAD (1)
+#define NUM_THREAD (3)
 #define NUM_INCREASE (10000000)
 
 int global_cnt = 0;
@@ -14,16 +14,18 @@ int global_cnt = 0;
 int ret_val[NUM_THREAD];
 
 void* increase(void* arg){
-	printf(1,"entered start routine and back to user-level\n");
-	int* int_arg = (int*) arg;
-	//printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
-	printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
+	int* int_arg = (int*) arg;	
+	printf(1,"gcnt[%d]\n",global_cnt);
+	printf(1,"arg[%d]\n",int_arg[0]);
+	// printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
+	// printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
 	
 	for (int i=0;i<int_arg[0];i++){
+		printf(1,"+\n");
 		global_cnt++;
 	}
 
-	thread_exit(&int_arg[1]);
+	thread_exit(&ret_val[1]);
 	return NULL;
 }
 
@@ -51,6 +53,7 @@ int main(int argc, char const *argv[])
 			continue;
 		else
 			my_error("thread_create");
+		printf(1,"MAIN thread created with tid[%d]",arg[i]);
 	}
     int *ptr[NUM_THREAD];
 
