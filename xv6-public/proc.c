@@ -153,22 +153,9 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
 
     cprintf("pid[%d] called thread_create\n",p->pid);
 
-   // if((nt = allocthread()) == NULL)
-       // return -1;
-    if ((nt = allocproc()) == NULL)
-        return -1;
-
-    /*
-    if(p -> multi_threaded == 0){
-        // single process became multi thread program
-
-        p->threads[0] = p; // itself
-        // p->master_thread = p; // itself. thread cannot call thread.
-    }
-    */
-
-    // cprintf("original master thread sz:%d\n",p->sz);
-
+    if((nt = allocthread()) == NULL)
+        return -1;  
+    
     nt -> multi_threaded = 1;
     nt -> master_thread = p;
 
@@ -180,7 +167,6 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
 
     // threads share pg dir
     // actually essence of 
-    nt -> pgdir = p -> pgdir;
 
     // copy of size
     // used in allocuvm() call to get changed size and check them.
@@ -214,7 +200,7 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     // reusable maybe but later.
     // clearpteu(p->pgdir,(char*)(p -> sz - 2*PGSIZE));
 
-    cprintf("curproc eip %x\n",p->context->eip);
+    // cprintf("curproc eip %x\n",p->context->eip);
 
 
     int argc = 1;
@@ -225,7 +211,6 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     // int* argv = (int*) arg;
     // ustack[0] = (uint)thread_exit; // auto clear it not called explicitly
     ustack[0] = 0xFFFFFFFF;// (int)thread_exit;
-    // ustack[0] = (int)thread_exit;
     ustack[1] = (uint) ((int*)arg)[0]; 
 
     // ustack[2] = (uint) ((int*)arg)[1]; 
@@ -268,7 +253,6 @@ thread_create(thread_t *thread, void* (*start_routine)(void*), void *arg)
     p -> num_thread++;
     p -> threads[p -> num_thread] = nt;
     nt -> tid = p -> num_thread;
-    
     nt -> state = RUNNABLE;
     release(&ptable.lock);
 
@@ -522,8 +506,8 @@ mycpu(void)
     panic("unknown apicid\n");
 }
 
-    // Disable interrupts so that we are not rescheduled
-    // while reading proc from the cpu structure
+// Disable interrupts so that we are not rescheduled
+// while reading proc from the cpu structure
 struct proc*
 myproc(void) {
     struct cpu *c;
@@ -728,6 +712,7 @@ fork(void)
     np->state = RUNNABLE;
     release(&ptable.lock);
 
+    
     cprintf("[fork process allocated] with pid[%d] ",np->pid);
     cprintf("master pid[%d] sz[%x] kstack[%x] ",np->master_thread->pid,np->sz,np->kstack);
     cprintf("pgdir[%x]\n",np->pgdir);
@@ -746,7 +731,7 @@ exit(void)
     struct proc *p;
     int fd;
 
-    cprintf("exiting\n");
+    //cprintf("exiting\n");
     if(curproc == initproc)
     panic("init exiting");
 

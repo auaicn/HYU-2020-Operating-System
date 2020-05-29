@@ -192,13 +192,13 @@ trap(struct trapframe *tf)
       }
       
     }else {
-      return;
-      
-      yield();
-      return;
+      // return;
+
+      // yield();
+      // return;
       // Multi threaded
       // Yield only if in finishes it's time quantom. 
-      cprintf("\nT interrupt while multi threaded program pid%d tid[%d]\n",myproc()->pid,myproc()->tid);
+      // cprintf("\nT interrupt while multi threaded program pid%d tid[%d]\n",myproc()->pid,myproc()->tid);
 
       thread* mthread = p -> master_thread;
       mthread->time_allotment--;
@@ -238,7 +238,7 @@ trap(struct trapframe *tf)
             // what scheduler does before swtching
             // no access to ptable lock but I think it's not needed.
             // although, state trasition may need it.
-           //  cprintf("myproc : %d %d\n", myproc()->pid,myproc()->tid);
+            //  cprintf("myproc : %d %d\n", myproc()->pid,myproc()->tid);
 
             // acquire(&(ptable.lock));
             mycpu()->proc = next_th;
@@ -249,7 +249,7 @@ trap(struct trapframe *tf)
             // I insisted to use forkret to release!
             // but actually, not needed.
             // need doing-nothing function maybe it would be better
-            cprintf("tid[%d -> %d] giving up cpu\n",p->tid, next_th->tid);
+            // cprintf("tid[%d -> %d] giving up cpu\n",p->tid, next_th->tid);
 
             /*
             int intena;
@@ -266,8 +266,8 @@ trap(struct trapframe *tf)
             swtch(&(p->context), next_th->context);
             //mycpu()->intena = intena;
 
-            cprintf("pid[%d]tid[%d] retrieved cpu\n",next_th->pid,next_th->tid);
-            cprintf("time to return\n");
+            // cprintf("pid[%d]tid[%d] retrieved cpu\n",next_th->pid,next_th->tid);
+            // cprintf("time to return\n");
             return;
         }
 
