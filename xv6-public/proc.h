@@ -95,6 +95,8 @@ struct proc {
   int first_scheduled;
   int from_trap;
 
+  int last_visited;
+
   struct proc* master_thread;
 
 };

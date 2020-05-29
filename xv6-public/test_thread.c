@@ -42,6 +42,7 @@ main(int argc, char *argv[])
   int pid;
   int start = 0;
   int end = NTEST-1;
+
   if (argc >= 2)
     start = atoi(argv[1]);
   if (argc >= 3)
@@ -59,13 +60,18 @@ main(int argc, char *argv[])
       printf(1,"fork panic\n");
       exit();
     }
-    if (pid == 0){
+
+    if (pid == 0)
+    {
+      // child
       close(gpipe[0]);
       ret = testfunc[i]();
       write(gpipe[1], (char*)&ret, sizeof(ret));
       close(gpipe[1]);
       exit();
-    } else{
+    } else
+    {
+      // parent
       close(gpipe[1]);
       if (wait() == -1 || read(gpipe[0], (char*)&ret, sizeof(ret)) == -1 || ret != 0){
         printf(1,"%d. %s panic\n", i, testname[i]);
@@ -73,6 +79,7 @@ main(int argc, char *argv[])
       }
       close(gpipe[0]);
     }
+
     printf(1,"%d. %s finish\n", i, testname[i]);
     sleep(100);
   }
@@ -89,12 +96,16 @@ racingthreadmain(void *arg)
   int i;
   //int j;
   int tmp;
+  printf(1,"entered start rountine\n");
+  printf(1,"arg : %d\n",arg);
   for (i = 0; i < 10000000; i++){
+    //printf(1,"+");
     tmp = gcnt;
     tmp++;
     nop();
     gcnt = tmp;
   }
+  printf(1,"global cnt [%d]\n",gcnt);
   thread_exit((void *)(tid+1));
   return 0;
 }
@@ -112,6 +123,7 @@ racingtest(void)
       printf(1, "panic at thread_create\n");
       return -1;
     }
+    printf(1,"madeone\n");
   }
   for (i = 0; i < NUM_THREAD; i++){
     if (thread_join(threads[i], &retval) != 0 || (int)retval != i+1){

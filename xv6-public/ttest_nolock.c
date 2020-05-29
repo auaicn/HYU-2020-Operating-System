@@ -6,7 +6,7 @@
 #define NULL		 ((void*)0)
 #endif
 
-#define NUM_THREAD (3)
+#define NUM_THREAD (1)
 #define NUM_INCREASE (10000000)
 
 int global_cnt = 0;
@@ -16,12 +16,12 @@ int ret_val[NUM_THREAD];
 void* increase(void* arg){
 	int* int_arg = (int*) arg;	
 	printf(1,"gcnt[%d]\n",global_cnt);
-	printf(1,"arg[%d]\n",int_arg[0]);
+	printf(1,"arg[%d]\n",*int_arg);
 	// printf(1,"[%d Thread] pid[%d] %d\n",thread_self(), getpid(),int_arg[1]);
 	// printf(1,"[%d Thread] pid[%d] %d\n",97, getpid(),int_arg[1]);
 	
 	for (int i=0;i<int_arg[0];i++){
-		printf(1,"+\n");
+		printf(1,"+");
 		global_cnt++;
 	}
 
@@ -33,6 +33,9 @@ void my_error(const char* str){
 	printf(1,"[ERROR] %s\n",str);
 }
 
+int arg[NUM_THREAD];
+
+
 int main(int argc, char const *argv[])
 {
 
@@ -42,13 +45,11 @@ int main(int argc, char const *argv[])
 	printf(1,"[%s Thread] pid[%d]\n","Master",getpid());
 	//printf(1,"start routine in user, integer %d\n",(int)increase);
 
-	int arg[NUM_THREAD][2];
 	for (int i=0;i<NUM_THREAD;i++)
-		arg[i][0] = NUM_INCREASE;
+		arg[i] = NUM_INCREASE;
 
 	for (int i = 0; i < NUM_THREAD; i++){
-		arg[i][1] = (i+2)*(i+2);
-		int ret = thread_create(&pid[i], &increase, (void*)arg[i]);
+		int ret = thread_create(&pid[i], &increase, &arg[i]);
 		if(!ret)
 			continue;
 		else

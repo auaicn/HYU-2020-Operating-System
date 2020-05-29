@@ -192,9 +192,13 @@ trap(struct trapframe *tf)
       }
       
     }else {
+      return;
+      
+      yield();
+      return;
       // Multi threaded
       // Yield only if in finishes it's time quantom. 
-      // cprintf("T interrupt after multi_threaded pid%d\n",myproc()->pid);
+      cprintf("\nT interrupt while multi threaded program pid%d tid[%d]\n",myproc()->pid,myproc()->tid);
 
       thread* mthread = p -> master_thread;
       mthread->time_allotment--;
@@ -208,7 +212,7 @@ trap(struct trapframe *tf)
         // what yield does with lock
         acquire(&(ptable.lock));
         p -> state = RUNNABLE; 
-        release(&ptable.lock);
+        // release(&ptable.lock);
 
         for (int i=0;i<=mthread->num_thread;i++){
 
@@ -234,8 +238,9 @@ trap(struct trapframe *tf)
             // what scheduler does before swtching
             // no access to ptable lock but I think it's not needed.
             // although, state trasition may need it.
-            
-            acquire(&(ptable.lock));
+           //  cprintf("myproc : %d %d\n", myproc()->pid,myproc()->tid);
+
+            // acquire(&(ptable.lock));
             mycpu()->proc = next_th;
             next_th -> state = RUNNING;
             release(&(ptable.lock));
@@ -244,17 +249,25 @@ trap(struct trapframe *tf)
             // I insisted to use forkret to release!
             // but actually, not needed.
             // need doing-nothing function maybe it would be better
+            cprintf("tid[%d -> %d] giving up cpu\n",p->tid, next_th->tid);
 
-            cprintf("tid[%d] to tid[%d] giving up cpu\n",p->tid,next_th->tid);
-            swtch(&(p->context), next_th->context);
-
-            cprintf("myproc pid tid %d %d\n",myproc()->pid,myproc()->tid);
             /*
-            cprintf("pid[%d]tid[%d] retrieved cpu\n",p->pid,p->tid);
-            cprintf("next_th pid[%d]tid[%d] \n",next_th->pid,next_th->tid);
-            cprintf("master pid[%d] sz[%x] kstack[%x] ",p->master_thread->pid,p->master_thread->sz,p->master_thread->kstack);
-            cprintf("pgdir[%x]\n",p->pgdir);
+            int intena;
+            intena = mycpu()->intena;
+
+            if(p->state == RUNNING)
+                panic("sched running");
+            if(readeflags()&FL_IF)
+                panic("sched interruptible");
+            if(mycpu()->ncli != 1)
+                panic("sched locks");
             */
+            
+            swtch(&(p->context), next_th->context);
+            //mycpu()->intena = intena;
+
+            cprintf("pid[%d]tid[%d] retrieved cpu\n",next_th->pid,next_th->tid);
+            cprintf("time to return\n");
             return;
         }
 
@@ -263,7 +276,7 @@ trap(struct trapframe *tf)
         panic("thread to run not found");
 
       }else{
-        cprintf("yield\n");
+        cprintf("time allot finished. yield from trap\n");
 
         // Time Finished yield will do extra jobs
         // MLFQ, Queue adjusting
@@ -276,6 +289,9 @@ trap(struct trapframe *tf)
 
         // do not directly switching from working thread to 
         // swtch(&(p->context),p->parent->context);
+        //if (myproc()->tid!=0)
+          //release(&ptable.lock);
+
         yield();
       }
     }
