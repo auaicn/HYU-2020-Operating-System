@@ -14,11 +14,11 @@
 #define INITIAL_LEV (0)
 #define STRIDE_LEV (9)
 
-static void wakeup1(void *chan);
-
 struct {
 struct spinlock lock;
 struct proc proc[NPROC];
+
+// Below my implementation
 struct proc* ARRAYQUEUE[DEPTH_QUEUE][NPROC];
 int q_size[DEPTH_QUEUE];
 } ptable;
@@ -28,13 +28,18 @@ struct proc* proc[NPROC];
 int stable_size;
 } stable;
 
+int min_pass;
+// My implementation ended
+
+
 static struct proc *initproc;
 
+extern void forkret(void);
+extern void trapret(void);
+
+static void wakeup1(void *chan);
+
 int nextpid = 1;
-
-int min_pass;
-
-
 
 int 
 min(int x,int y)
@@ -61,9 +66,6 @@ set_cpu_share(int share)
 
     acquire(&ptable.lock);
     struct proc* p= myproc();
-
-    if(p -> tid)
-        p = p -> parent;
 
     stable.proc[++stable.stable_size] = p;
 
@@ -187,10 +189,6 @@ allocproc(void)
     memset(p->context, 0, sizeof *p->context);
     p->context->eip = (uint)forkret;
 
-    // LWP
-    p -> multi_threaded = 0; // false initially
-    p -> num_thread = 0;
-
     // for MLFQ scheduling
     p -> lev = INITIAL_LEV;
     p -> time_allotment = time_allotment[INITIAL_LEV];
@@ -202,10 +200,6 @@ allocproc(void)
 
     // debugging testcase
     p -> first_scheduled = 0;
-    p -> master_thread = p;
-    p -> tid = 0;
-
-    p->last_visited = 0;
 
     acquire(&ptable.lock);
     ptable.ARRAYQUEUE[0][++ptable.q_size[0]] = p;
@@ -257,10 +251,6 @@ userinit(void)
     p->state = RUNNABLE;
 
     release(&ptable.lock);
-
-    cprintf("[init process allocated] with pid[%d] ",p->pid);
-    cprintf("master pid[%d] sz[%x] kstack[%x] ",p->master_thread->pid,p->sz,p->kstack);
-    cprintf("pgdir[%x]\n",p->pgdir);
 
 }
 
@@ -325,18 +315,9 @@ fork(void)
     // to return
     pid = np->pid;
 
-    // MASTER thread
-    np -> num_thread = 0;
-    np -> tid = 0;
-
     acquire(&ptable.lock);
     np->state = RUNNABLE;
     release(&ptable.lock);
-
-    cprintf("[fork process allocated] with pid[%d] ",np->pid);
-    cprintf("master pid[%d] sz[%x] kstack[%x] ",np->master_thread->pid,np->sz,np->kstack);
-    cprintf("pgdir[%x]\n",np->pgdir);
-
 
     return pid;
 }
@@ -351,9 +332,8 @@ exit(void)
     struct proc *p;
     int fd;
 
-    cprintf("exiting\n");
     if(curproc == initproc)
-    panic("init exiting");
+        panic("init exiting");
 
     // Close all open files.
     for(fd = 0; fd < NOFILE; fd++){
@@ -620,14 +600,6 @@ sched(void)
     mycpu()->intena = intena;
 }
 
-void
-thread_switch(thread* old, thread* new)
-{
-    acquire(&ptable.lock);
-    old->state = RUNNABLE;
-    release(&ptable.lock);
-}
-
 // Give up the CPU for one scheduling round.
 void
 yield(void)
@@ -702,28 +674,10 @@ yield(void)
 // I insisted to use forkret to release!
 // but actually, not needed.
 // need doing-nothing function maybe it would be better
-
-void
-do_nothing(void)
-{
-    cprintf("donothing\n");
-}
-
 void
 forkret(void)
 {
-    /*
-    if(myproc()){
-        if((myproc() -> pid) == -1)
-            cprintf("thread[%d] entering forkret()\n",myproc()->tid);
-        else
-            cprintf("process[%d] entering forkret()\n",myproc()->pid);
-    }
-    */
-    if(myproc()->multi_threaded == 1 && myproc()->first_scheduled){
-        myproc()->first_scheduled = 0;
-        acquire(&ptable.lock);
-    }
+
     static int first = 1;
 
     // Still holding ptable.lock from scheduler.
@@ -736,15 +690,6 @@ forkret(void)
         iinit(ROOTDEV);
         initlog(ROOTDEV);
     }
-
-    /*
-    if(myproc()){
-        if((myproc() -> pid) == -1)
-            cprintf("thread[%d] escaping forkret()\n",myproc()->tid);
-        else
-            cprintf("process[%d] escaping forkret()\n",myproc()->pid);
-    }
-    */
 
     // Return to "caller", actually trapret (see allocproc).
 }

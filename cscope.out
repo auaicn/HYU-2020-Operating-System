@@ -1,0 +1,643 @@
+cscope 15 $HOME/os2020/2020_ELE3021_2016024811               0000003214
+	@trap.c
+
+1 
+	~"ty³s.h
+"
+
+2 
+	~"defs.h
+"
+
+3 
+	~"·¿m.h
+"
+
+4 
+	~"memÏyout.h
+"
+
+5 
+	~"mmu.h
+"
+
+6 
+	~"´oc.h
+"
+
+7 
+	~"x86.h
+"
+
+8 
+	~"Œ­s.h
+"
+
+9 
+	~"¥šlock.h
+"
+
+12 
+g©edesc
+ 
+	gidt
+[256];
+
+13 
+ušt
+ 
+veùÜs
+[];
+
+14 
+¥šlock
+ 
+	gtick¦ock
+;
+
+16 
+ušt
+ 
+	gticks
+;
+
+17 
+ušt
+ 
+	gMLFQ_ticks
+;
+
+19 #iâdeà
+STRIDE_LEV
+
+
+20 
+	#STRIDE_LEV
+ (9)
+
+	)
+
+23 #iâdeà
+STRIDE_DEFAULT_TIME_QUANTOM
+
+
+24 
+	#STRIDE_DEFAULT_TIME_QUANTOM
+ (5)
+
+	)
+
+27 #iâdeà
+PERIOD_BOOSTING
+
+
+28 
+	#PERIOD_BOOSTING
+ (200)
+
+	)
+
+31 
+	gtime_quªtom
+[10] = {5,10,20};
+
+32 
+	gtime_®lÙm’t
+[10] = {20,40,0};
+
+35 
+	$tvš™
+()
+
+37 
+i
+;
+
+39 
+i
+ = 0; i < 256; i++)
+
+40 
+	`SETGATE
+(
+idt
+[
+i
+], 0, 
+SEG_KCODE
+<<3, 
+veùÜs
+[i], 0);
+
+41 
+	`SETGATE
+(
+idt
+[
+T_SYSCALL
+], 1, 
+SEG_KCODE
+<<3, 
+veùÜs
+[T_SYSCALL], 
+DPL_USER
+);
+
+43 
+	`š™lock
+(&
+tick¦ock
+, "time");
+
+44 
+	}
+}
+
+47 
+	$idtš™
+()
+
+49 
+	`lidt
+(
+idt
+, (idt));
+
+50 
+	}
+}
+
+54 
+	$Œ­
+(
+Œ­äame
+ *
+tf
+)
+
+56 if(
+tf
+->
+Œ­no
+ =ð
+T_SYSCALL
+){
+
+57 if(
+	`my´oc
+()->
+kžËd
+)
+
+58 
+	`ex™
+();
+
+59 
+	`my´oc
+()->
+tf
+ =f;
+
+60 
+	`sysÿÎ
+();
+
+61 if(
+	`my´oc
+()->
+kžËd
+)
+
+62 
+	`ex™
+();
+
+66 
+tf
+->
+Œ­no
+){
+
+67 
+T_IRQ0
+ + 
+IRQ_TIMER
+:
+
+68 
+	`ýrštf
+("ticktock\n");
+
+69 if(
+	`ýuid
+() == 0){
+
+70 
+	`acquœe
+(&
+tick¦ock
+);
+
+71 
+ticks
+++;
+
+72 
+	`wakeup
+(&
+ticks
+);
+
+73 
+	`»Ëa£
+(&
+tick¦ock
+);
+
+75 
+	`Ïpiûoi
+();
+
+77 
+T_IRQ0
+ + 
+IRQ_IDE
+:
+
+78 
+	`idešŒ
+();
+
+79 
+	`Ïpiûoi
+();
+
+81 
+T_IRQ0
+ + 
+IRQ_IDE
++1:
+
+84 
+T_IRQ0
+ + 
+IRQ_KBD
+:
+
+85 
+	`kbdšŒ
+();
+
+86 
+	`Ïpiûoi
+();
+
+88 
+T_IRQ0
+ + 
+IRQ_COM1
+:
+
+89 
+	`u¬tšŒ
+();
+
+90 
+	`Ïpiûoi
+();
+
+92 
+T_IRQ0
+ + 7:
+
+93 
+T_IRQ0
+ + 
+IRQ_SPURIOUS
+:
+
+94 
+	`ýrštf
+("cpu%d: spurious interrupt‡t %x:%x\n",
+
+95 
+	`ýuid
+(), 
+tf
+->
+cs
+,f->
+e
+);
+
+96 
+	`Ïpiûoi
+();
+
+101 if(
+	`my´oc
+(è=ð0 || (
+tf
+->
+cs
+&3) == 0){
+
+103 
+	`ýrštf
+("unexpectedrap %d from cpu %dƒip %x (cr2=0x%x)\n",
+
+104 
+tf
+->
+Œ­no
+, 
+	`ýuid
+(),f->
+e
+, 
+	`rü2
+());
+
+105 
+	`·nic
+("trap");
+
+108 
+	`ýrštf
+("pid %d %s:rap %dƒrr %d on cpu %d "
+
+110 
+	`my´oc
+()->
+pid
+, my´oc()->
+Çme
+, 
+tf
+->
+Œ­no
+,
+
+111 
+tf
+->
+”r
+, 
+	`ýuid
+(),f->
+e
+, 
+	`rü2
+());
+
+112 
+	`my´oc
+()->
+kžËd
+ = 1;
+
+118 if(
+	`my´oc
+(è&& my´oc()->
+kžËd
+ && (
+tf
+->
+cs
+&3è=ð
+DPL_USER
+)
+
+119 
+	`ex™
+();
+
+123 if(
+	`my´oc
+()
+
+124 && 
+	`my´oc
+()->
+¡©e
+ =ð
+RUNNING
+
+
+125 && 
+tf
+->
+Œ­no
+ =ð
+T_IRQ0
++
+IRQ_TIMER
+){
+
+127 
+´oc
+* 
+p
+ = 
+	`my´oc
+();
+
+130 if(
+p
+->
+sh¬e
+ == 0){
+
+133 
+	`acquœe
+(&
+tick¦ock
+);
+
+134 
+MLFQ_ticks
+++;
+
+135 
+	`»Ëa£
+(&
+tick¦ock
+);
+
+139 if(! (
+MLFQ_ticks
+%
+PERIOD_BOOSTING
+) );
+
+147 if(
+p
+->
+num_th»ad
+ == 0){
+
+149 
+p
+->
+time_®lÙm’t
+--;
+
+150 ifÐ(
+p
+->
+time_®lÙm’t
+%
+time_quªtom
+[p->
+Ëv
+])!=0 ){
+
+158 
+	`y›ld
+();
+
+164 
+p
+->
+time_®lÙm’t
+--;
+
+165 ifÐ(
+p
+->
+time_®lÙm’t
+%
+time_quªtom
+[p->
+Ëv
+])!=0 ){
+
+171 
+´oc
+* 
+µ
+ = 
+p
+->
+·»Á
+;
+
+172 
+th»ad
+* 
+Á
+ = 
+NULL
+;
+
+177 
+i
+=1;i<=
+µ
+->
+num_th»ad
+;i++){
+
+179 
+idx
+ = (
+p
+->
+tid
++
+i
+)%
+µ
+->
+num_th»ad
++1;
+
+180 
+	`ýrštf
+("[%d/%d]\n",
+idx
+,
+µ
+->
+num_th»ad
+);
+
+181 
+Á
+ = 
+µ
+->
+th»ads
+[
+idx
+];
+
+183 if(
+Á
+->
+¡©e
+!=
+RUNNABLE
+)
+
+186 
+p
+->
+¡©e
+ = 
+RUNNABLE
+;
+
+187 
+	`swtch
+(&
+p
+->
+cÚ‹xt
+, 
+Á
+->context);
+
+191 
+	`·nic
+("threado„un‚ot found");
+
+201 
+	`y›ld
+();
+
+208 if(
+	`my´oc
+()
+
+209 && 
+	`my´oc
+()->
+kžËd
+
+
+210 && (
+tf
+->
+cs
+&3è=ð
+DPL_USER
+)
+
+211 
+	`ex™
+();
+
+212 
+	}
+}
+
+	@
+1
+.
+1
+/usr/include
+1
+7
+trap.c

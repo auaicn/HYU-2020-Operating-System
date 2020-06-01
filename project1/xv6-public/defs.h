@@ -123,9 +123,6 @@ void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
-// void 			get_ptable_lock(void);
-// void 			release_ptable_lock(void);
-extern struct ptable_struct ptable;
 
 void            yield(void);
 int				getlev(void);

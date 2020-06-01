@@ -32,8 +32,8 @@ uint MLFQ_ticks;
 #define DEPTH_QUEUE (3)
 #endif
 
-int time_quantom[10] = {5,10,20};
-int time_allotment[10] = {20,40,0};
+int time_quantom[10] = {1,2,4};
+int time_allotment[10] = {5,10,0};
 
 void
 tvinit(void)
@@ -153,24 +153,22 @@ trap(struct trapframe *tf)
     // global ticks variable incremented
     // MLFQ, STRIDE, single Threaded, MultiThreaded Process(Thread) have time quantom
 
-    if(p -> multi_threaded == 0){
-      // Single Threaded
+    // Single Threaded
+    // time alootment decreased
+    
+    p -> time_allotment--; 
 
-      // time alootment decreased
-      p -> time_allotment--; 
-
-      if(( p->time_allotment % time_quantom[p->lev] ) != 0){
-        // Time LEFT
-        // do not sched
-        return;
-      }else{
-        // alloted time quantom Finished 
-        // yield will do extra jobs
-        // MLFQ, Queue adjusting
-        // STRIDE, time allotment resotration
-        p->from_trap = 1;
-        yield();
-      }
+    if(( p->time_allotment % time_quantom[p->lev] ) != 0){
+      // Time LEFT
+      // do not sched
+      return;
+    }else{
+      // alloted time quantom Finished 
+      // yield will do extra jobs
+      // MLFQ, Queue adjusting
+      // STRIDE, time allotment resotration
+      p->from_trap = 1;
+      yield();
     }
   }
 

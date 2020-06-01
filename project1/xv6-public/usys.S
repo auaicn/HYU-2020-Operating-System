@@ -34,9 +34,3 @@ SYSCALL(yield)
 SYSCALL(set_cpu_share)
 SYSCALL(getlev)
 
-SYSCALL(queue_table_lookup)
-
-SYSCALL(thread_create)
-SYSCALL(thread_join)
-SYSCALL(thread_exit)
-
