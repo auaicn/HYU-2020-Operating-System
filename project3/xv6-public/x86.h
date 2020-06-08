@@ -87,7 +87,7 @@ lidt(struct gatedesc *p, int size)
   pd[0] = size-1;
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
-  cprintf("%d %d %d\n",pd[0],pd[1],pd[2])
+	//printf("%d %d %d\n",pd[0],pd[1],pd[2]);
 
   asm volatile("lidt (%0)" : : "r" (pd));
 }

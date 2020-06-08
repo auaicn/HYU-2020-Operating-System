@@ -16,6 +16,18 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+int     
+pwrite(struct file* f, char* addr, int n , int offset)
+{
+  return 0;
+}
+
+int     
+pread(struct file* f, char* addr, int n , int offset)
+{
+  return 0;
+}
+	
 void
 fileinit(void)
 {

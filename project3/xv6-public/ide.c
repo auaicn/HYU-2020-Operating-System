@@ -77,10 +77,12 @@ idestart(struct buf *b)
 {
   if(b == 0)
     panic("idestart");
-  if(b->blockno >= FSSIZE)
+  if(b->blockno >= FSSIZE){
+    cprintf("block no : %d\n",b->blockno);
     panic("incorrect blockno");
-  int sector_per_block =  BSIZE/SECTOR_SIZE;
-  int sector = b->blockno * sector_per_block;
+  }
+  int sector_per_block =  BSIZE/SECTOR_SIZE; // becomes 1 here.
+  int sector = b->blockno * sector_per_block; // sector equals to block no here.
   int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL;
   int write_cmd = (sector_per_block == 1) ? IDE_CMD_WRITE : IDE_CMD_WRMUL;
 
@@ -141,6 +143,7 @@ ideintr(void)
 
 // bread 랑 bwrite만 여기를 부르네
 // bwrite 만이 dirty set 하구.
+// disk driver read write
 void
 iderw(struct buf *b)
 {
@@ -163,6 +166,7 @@ iderw(struct buf *b)
   // npcu = 1 지금 CPUS=1 로 돌리니까 현재 있는 하나의 프로세서에 interrupt enable 해주는거 같네.
   // 잘되는지 idewait(0) 해서 확인해준거 같고. 이제 disk 1이 머 어디 쓰이는진 모르겠지만, fs.img 이려나!!
   // 
+  
   /*
   x86.h:
   static inline void

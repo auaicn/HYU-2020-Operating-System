@@ -11,6 +11,10 @@ struct stat;
 struct superblock;
 
 
+// project 3
+int 		pwrite(struct file*, char*, int, int);
+int 		pread(struct file*, char*, int, int);
+
 // boost visible to trap.c
 void 			boost (void);
 

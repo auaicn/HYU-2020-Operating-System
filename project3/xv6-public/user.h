@@ -30,8 +30,8 @@ int getlev(void); // MLFQ
 int yield(void); // yield 
 
 // project 3
-int pwrite(int fd, void*addr, int n, int off);
-int pread(int fd, void*addr, int n, int off);
+int pwrite(int, void*, int, int);
+int pread(int, void*, int, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

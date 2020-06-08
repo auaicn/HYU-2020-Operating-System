@@ -410,7 +410,7 @@ bmap(struct inode *ip, uint bn)
   }
 
   // for now
-  panic("bmap: out of range"); 
+  //panic("bmap: out of range"); 
 
   // project 3 implementation
 
@@ -617,10 +617,16 @@ writei(struct inode *ip, char *src, uint off, uint n)
     return devsw[ip->major].write(ip, src, n);
   }
 
-  if(off > ip->size || off + n < off)
+  if(off > ip->size || off + n < off){
+    cprintf("offset is out of inode size\n");
     return -1;
-  if(off + n > MAXFILE*BSIZE)
+  }
+
+  if(off + n > MAXFILE*BSIZE){
+    cprintf("current file offset +  desired write byte > MAXFILE*BSIZE[%d]",MAXFILE*BSIZE);
+
     return -1;
+  }
 
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
