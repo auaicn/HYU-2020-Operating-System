@@ -24,14 +24,14 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
-// STRIDE
-int set_cpu_share(int);
+// project 1
+int set_cpu_share(int); // STRIDE
+int getlev(void); // MLFQ
+int yield(void); // yield 
 
-// MLFQ
-int getlev(void);
-
-// yield
-int yield(void);
+// project 3
+int pwrite(int fd, void*addr, int n, int off);
+int pread(int fd, void*addr, int n, int off);
 
 // ulib.c
 int stat(const char*, struct stat*);

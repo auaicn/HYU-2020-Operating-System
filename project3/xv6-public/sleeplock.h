@@ -8,3 +8,4 @@ struct sleeplock {
   int pid;           // Process holding lock
 };
 
+// size : spinlock (13) + 9 = 22

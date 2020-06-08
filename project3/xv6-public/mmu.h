@@ -156,7 +156,7 @@ struct gatedesc {
   uint p : 1;           // Present
   uint off_31_16 : 16;  // high bits of offset in segment
 };
-
+ 
 // Set up a normal interrupt/trap gate descriptor.
 // - istrap: 1 for a trap (= exception) gate, 0 for an interrupt gate.
 //   interrupt gate clears FL_IF, trap gate leaves FL_IF alone
@@ -173,7 +173,7 @@ struct gatedesc {
   (gate).rsv1 = 0;                                        \
   (gate).type = (istrap) ? STS_TG32 : STS_IG32;           \
   (gate).s = 0;                                           \
-  (gate).dpl = (d);                                       \
+  (gate).dpl = (d);                                       \ 
   (gate).p = 1;                                           \
   (gate).off_31_16 = (uint)(off) >> 16;                  \
 }

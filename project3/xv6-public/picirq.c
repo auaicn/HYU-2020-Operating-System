@@ -11,7 +11,7 @@ void
 picinit(void)
 {
   // mask all interrupts
-  outb(IO_PIC1+1, 0xFF);
+  outb(IO_PIC1+1, 0xFF); // 0x20 이면 32다. T interrupt 인것 같네. // Timer 1 set to 1 and then enabled 부분은 어디일까
   outb(IO_PIC2+1, 0xFF);
 }
 

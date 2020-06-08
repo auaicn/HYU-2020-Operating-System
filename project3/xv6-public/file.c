@@ -93,6 +93,7 @@ filestat(struct file *f, struct stat *st)
 }
 
 // Read from file f.
+// the number of bytes read or written is returned
 int
 fileread(struct file *f, char *addr, int n)
 {
@@ -100,11 +101,20 @@ fileread(struct file *f, char *addr, int n)
 
   if(f->readable == 0)
     return -1;
+
+  // f 만 pipe를 가리키게 되고 나머지는 인자 똑같이 주네
   if(f->type == FD_PIPE)
     return piperead(f->pipe, addr, n);
+
+  // fileread 를 부르는 대상 file 은 type이 무조건 PIPE 거나 INODE인가 보다.
   if(f->type == FD_INODE){
+
+    // read인데 lock 을 거는구나.
     ilock(f->ip);
+
+    // 현재 disk에서 메모리로 불러온 inode structure를 참조해서 현재 offset에서 n만큼 읽어오네.
     if((r = readi(f->ip, addr, f->off, n)) > 0)
+      // offset automatically increased
       f->off += r;
     iunlock(f->ip);
     return r;

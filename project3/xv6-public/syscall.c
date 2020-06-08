@@ -107,20 +107,9 @@ extern int sys_uptime(void);
 extern int sys_set_cpu_share(void);
 extern int sys_getlev(void);
 extern int sys_yield(void);
-extern int sys_myfunction(void);
-extern int sys_getppid(void);
-extern int sys_queue_table_lookup(void);
 
-extern int sys_thread_create(void);
-extern int sys_thread_exit(void);
-extern int sys_thread_join(void);
-
-/*
-extern int sys_thread_self(void);
-extern int sys_thread_mutex_lock(void);
-extern int sys_thread_mutex_unlock(void);
-extern int sys_thread_mutex_init(void);
-*/
+extern int sys_pread(void);
+extern int sys_pwrite(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -145,17 +134,17 @@ static int (*syscalls[])(void) = {
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
 
+// project 1
 [SYS_yield]   sys_yield,
 [SYS_set_cpu_share] sys_set_cpu_share,
 [SYS_getlev]  sys_getlev,
+
+// project 3
+[SYS_pread]   sys_pread,
+[SYS_pwrite]  sys_pwrite,
+
 };
 
-/*
-[SYS_thread_self] sys_thread_self,
-[SYS_thread_mutex_lock] sys_thread_mutex_lock,
-[SYS_thread_mutex_unlock] sys_thread_mutex_unlock,
-[SYS_thread_mutex_init] sys_thread_mutex_init,
-*/
 void
 syscall(void)
 {

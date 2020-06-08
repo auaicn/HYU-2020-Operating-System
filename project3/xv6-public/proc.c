@@ -343,15 +343,22 @@ exit(void)
         }
     }
 
+    // iput으로 cwd reference count를 줄이네
     begin_op();
     iput(curproc->cwd);
     end_op();
+
+    // tidy up
     curproc->cwd = 0;
 
     acquire(&ptable.lock);
 
     // Parent might be sleeping in wait().
+    // wake up 1 을 부르네.
+    // 그러면 lock 을 잡고 불러주는게 맞지.
     wakeup1(curproc->parent);
+
+    // 한번 부르고 또불러?
 
     // current process may
     // Pass abandoned children to init.
@@ -433,14 +440,14 @@ wait(void)
 
     // No point waiting if we don't have any children.
     if(!havekids || curproc->killed){
-    release(&ptable.lock);
-    return -1;
+        release(&ptable.lock);
+        return -1;
     }
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
     }
-    }
+}
 
     //PAGEBREAK: 42
 
@@ -454,8 +461,8 @@ boost (void)
 
     struct proc* p;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    p->lev = 0;
-    p->time_allotment = time_allotment[0];
+        p->lev = 0;
+        p->time_allotment = time_allotment[0];
     }
     release(&ptable.lock);
 }
@@ -489,8 +496,11 @@ scheduler(void)
 
     for(;;){
 
-    // Enable interrupts on this processor.
-    // though kernel has control, Ctrl+A X has to terminated the system.
+        // Enable interrupts on this processor.
+        // though kernel has control, Ctrl+A X has to terminated the system.
+        // 맨날 enable만 하나 cli는 어디있어
+        // cli 는 instruction 이다. 
+        // assembly 인것 같고 bootasm.S 처음부분에 있음. 비교적 high level 인 이주변엔 어디있나 인터럽트 막는부분이?
         sti();
 
         acquire(&ptable.lock);
@@ -593,6 +603,9 @@ sched(void)
         panic("sched locks");
     if(p->state == RUNNING)
         panic("sched running");
+
+    // scheduler 들어가서는 stoi()로 interrupt 가능하게 하더니
+    // 이시점에서는 interrupt가 막혀있어야 하나보네.
     if(readeflags()&FL_IF)
         panic("sched interruptible");
     intena = mycpu()->intena;
@@ -714,8 +727,8 @@ sleep(void *chan, struct spinlock *lk)
     // (wakeup runs with ptable.lock locked),
     // so it's okay to release lk.
     if(lk != &ptable.lock){  //DOC: sleeplock0
-    acquire(&ptable.lock);  //DOC: sleeplock1
-    release(lk);
+        acquire(&ptable.lock);  //DOC: sleeplock1
+        release(lk);
     }
     // Go to sleep.
     p->chan = chan;
@@ -728,38 +741,45 @@ sleep(void *chan, struct spinlock *lk)
 
     // Reacquire original lock.
     if(lk != &ptable.lock){  //DOC: sleeplock2
-    release(&ptable.lock);
-    acquire(lk);
-    }
+        release(&ptable.lock);
+        acquire(lk);
     }
 
-    //PAGEBREAK!
-    // Wake up all processes sleeping on chan.
-    // The ptable lock must be held.
-    static void
-    wakeup1(void *chan)
-    {
+}
+
+//PAGEBREAK!
+// Wake up all processes sleeping on chan.
+// The ptable lock must be held.
+// so simple
+static void
+wakeup1(void *chan)
+{
     struct proc *p;
 
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
-    p->state = RUNNABLE;
-    }
+        if(p->state == SLEEPING && p->chan == chan)
+            p->state = RUNNABLE;
+}
 
-    // Wake up all processes sleeping on chan.
-    void
-    wakeup(void *chan)
-    {
+// Wake up all processes sleeping on chan.
+void
+wakeup(void *chan)
+{
+    // 락을 잡고 하기 때문에, wakeup lost가 일어나지 않게 된다.
+    // sleep은 락을 잡고 들어가며, 그 락이 다른 락일 수 있지만, 그 락을 놓기 전에,
+    // ptable을 획득하고서 놓는다. CPU가 하나인 상태에서는 lost-wakeup, deadlock 으로부터 안전하다.
+    // wakeup입장에서는, ptable을 잡고 wakeup1을 해야함. sleep lock 관련.
     acquire(&ptable.lock);
     wakeup1(chan);
     release(&ptable.lock);
-    }
 
-    // Kill the process with the given pid.
-    // Process won't exit until it returns
-    // to user space (see trap in trap.c).
-    int
-    kill(int pid)
+}
+
+// Kill the process with the given pid.
+// Process won't exit until it returns
+// to user space (see trap in trap.c).
+int
+kill(int pid)
     {
     struct proc *p;
 

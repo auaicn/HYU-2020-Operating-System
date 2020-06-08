@@ -20,8 +20,10 @@ struct inode {
   short type;         // copy of disk inode
   short major;
   short minor;
-  short nlink;
-  uint size;
+  short nlink;        // symbolic, hard link 랑 관련되어 있나보다.
+  uint size;          
+
+  // NDIRECT is 12
   uint addrs[NDIRECT+1];
 };
 

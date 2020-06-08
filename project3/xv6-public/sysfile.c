@@ -79,6 +79,19 @@ sys_read(void)
 }
 
 int
+sys_pread(void)
+{
+  struct file *f;
+  int n;
+  char *p;
+  int off;
+
+  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &p, n) < 0 || argint(3, &off))
+    return -1;
+  return pread(f, p, n, off);
+}
+
+int
 sys_write(void)
 {
   struct file *f;
@@ -88,6 +101,20 @@ sys_write(void)
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &p, n) < 0)
     return -1;
   return filewrite(f, p, n);
+}
+
+// project 3
+int
+sys_pwrite(void)
+{
+  struct file *f;
+  int n;
+  char *p;
+  int off;
+
+  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argptr(1, &p, n) < 0 || argint(3, &off))
+    return -1;
+  return pwrite(f, p, n, off);
 }
 
 int
@@ -295,17 +322,25 @@ sys_open(void)
 
   begin_op();
 
+  // memory에 path에 해당하는 inode가 있는지 먼저 확인하고, 없으면, 올린다.
   if(omode & O_CREATE){
     ip = create(path, T_FILE, 0, 0);
+
     if(ip == 0){
+      // 이미 있으면 create가 0을 리턴하겠지.
+      // w+, truncate모드를 지원하는지는 아직은 잘 모르겠다.
       end_op();
       return -1;
     }
   } else {
     if((ip = namei(path)) == 0){
+      // [error] not found
+      // create 모드가 아닌데, not found 라는건 오류인거지.
+      // return value는 호출한 user process의 system call 반환값으로 들어간다.
       end_op();
       return -1;
     }
+    
     ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
@@ -314,6 +349,7 @@ sys_open(void)
     }
   }
 
+  // i node가 있으면, file struct를 하나 만들고, inode를 연결해서 리턴해준다.
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
     if(f)
       fileclose(f);

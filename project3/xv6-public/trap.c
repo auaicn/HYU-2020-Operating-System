@@ -40,6 +40,9 @@ tvinit(void)
 {
   int i;
 
+  // SETGATE의 2번째 argument 는 istrap 이다.
+  // syscall is calle 'trap' in xv6
+  // otherwise, real interrupt.
   for(i = 0; i < 256; i++)
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
@@ -50,6 +53,7 @@ tvinit(void)
 void
 idtinit(void)
 {
+  // idt : global variable.
   lidt(idt, sizeof(idt));
 }
 

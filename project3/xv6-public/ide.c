@@ -53,6 +53,8 @@ ideinit(void)
   int i;
 
   initlock(&idelock, "ide");
+
+  // multiprocessor
   ioapicenable(IRQ_IDE, ncpu - 1);
   idewait(0);
 
@@ -134,6 +136,11 @@ ideintr(void)
 // Sync buf with disk.
 // If B_DIRTY is set, write buf to disk, clear B_DIRTY, set B_VALID.
 // Else if B_VALID is not set, read buf from disk, set B_VALID.
+// 여깄네!! 여기 sync buf with disk라고 하네
+// bwrite가 불렸으면, B_DIRTY가 설정이 되거든.
+
+// bread 랑 bwrite만 여기를 부르네
+// bwrite 만이 dirty set 하구.
 void
 iderw(struct buf *b)
 {
@@ -141,19 +148,55 @@ iderw(struct buf *b)
 
   if(!holdingsleep(&b->lock))
     panic("iderw: buf not locked");
+
+  // valid but not dirty
+  // 근데 dirty여야 여기를 들어오도록 했나봐. 그건 
+  // bwrite에서는 그냥 dirty set하고 불렀는데?
+  // valid는 좀더 예전에 걸러지나봐.
   if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)
     panic("iderw: nothing to do");
+
+  // dev 는 device 이다.
+  // havedisk1는 전역으로 0으로 되어 있는데,
+  // boot 시 main.c:main():ideinit()에서 inb(0x1f7) 이 0이 아닌 값이면 1로 set이 되네.
+  // ideinit()에서 advanced programmable interrupt controller 의 traps.h:IRQ_IDE (14) 가 ncpu -1 번 cpu에 한해 enable 되네
+  // npcu = 1 지금 CPUS=1 로 돌리니까 현재 있는 하나의 프로세서에 interrupt enable 해주는거 같네.
+  // 잘되는지 idewait(0) 해서 확인해준거 같고. 이제 disk 1이 머 어디 쓰이는진 모르겠지만, fs.img 이려나!!
+  // 
+  /*
+  x86.h:
+  static inline void
+  outb(ushort port, uchar data)
+  {
+    asm volatile("out %0,%1" : : "a" (data), "d" (port));
+  }
+  아 인자 두개구나. 10000 | 0xe0 dmf 0x1f6 port로 보내고 그러네.
+  보냈으니 이제 신호를 기다리는부분이 inb(0x1f7) 이다. 
+  b 는 byte를 뜻해서, 8bit bus인지 아무튼 1000번을 읽어오네.
+  하나라도 0이 아닌 값이 들어오면 disk1이 있다고 설정을 해주고, 더이상 inb를 하지 않고 break 후
+  disk 0으로 돌아간대. 돌아가는게 outb로 되는진 모르겟지만.
+  
+  */
+
+
+
+  // 아무튼 이 함수는 말이야. havedisk1이 1이어야지 동작을 한다.
+  // buffer를 쓰든 읽어올라든 그 출처가, 대상이 필요할거 아냐
+  // buffer 의 device 정보는 0이어야 하고, 다시 한번 말하지만, disk 가 있어야 작동을 한다.
   if(b->dev != 0 && !havedisk1)
     panic("iderw: ide disk 1 not present");
 
   acquire(&idelock);  //DOC:acquire-lock
 
   // Append b to idequeue.
+  // append 니까 정말 마지막에 붙이네. MRU랬나?
+  // last element가 될거니깐, 
   b->qnext = 0;
   for(pp=&idequeue; *pp; pp=&(*pp)->qnext)  //DOC:insert-queue
     ;
   *pp = b;
 
+  // 하나 넣었는데, 그놈이 그놈이야. 그럼 비어있었다는 얘기.
   // Start disk if necessary.
   if(idequeue == b)
     idestart(b);

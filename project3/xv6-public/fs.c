@@ -21,7 +21,9 @@
 #include "buf.h"
 #include "file.h"
 
+// min used in readi and writei execution
 #define min(a, b) ((a) < (b) ? (a) : (b))
+
 static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
 // only one device
@@ -224,12 +226,23 @@ iupdate(struct inode *ip)
   struct dinode *dip;
 
   bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+
+  // dip 정보가 바뀌었구나.
+  // 이부분이 inode가 바뀌는 부분이네.
+  // commit 은 여전히 하지는 않고 log만 적는 것 같다.
+  // 아무래도 시스템 아예 종료할때나, Ctrl + A X로도 종료해도 잘 정리할거같은데,
+  // cache가 가득차서 내려야 할때 DBMS 버퍼매니저 처럼 lazy 하게 디스크에 쓰렜지.
+
+  // 블락 내에서 8개중 어디에 해당하는지 dip에 저장하고 타입 캐스팅 해준다.
+  // type catting 해줬으니까 inum%IPB로 나눈값을 더하면 저절로 64씩 오른다.
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
   dip->major = ip->major;
   dip->minor = ip->minor;
   dip->nlink = ip->nlink;
   dip->size = ip->size;
+
+  // 13개 바꿔준다. 그 아래 indirect childs는 이미 log write했다. bmap에서.
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
@@ -377,7 +390,7 @@ bmap(struct inode *ip, uint bn)
 
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
-      ip->addrs[bn] = addr = balloc(ip->dev);
+      ip->addrs[bn] = addr = balloc(ip->dev); // allocating data block
     return addr;
   }
   bn -= NDIRECT;
@@ -389,13 +402,127 @@ bmap(struct inode *ip, uint bn)
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
-      a[bn] = addr = balloc(ip->dev);
+      a[bn] = addr = balloc(ip->dev); // allocating data block
       log_write(bp);
     }
     brelse(bp);
     return addr;
   }
 
+  // for now
+  panic("bmap: out of range"); 
+
+  // project 3 implementation
+
+  // not returned -> escaped
+  // double indirect
+  // bigger than 140 block
+  // block number decremented by 140 now
+  // # define DINDIRECT_IDX (11)
+  // # define TINDIRECT_IDX (12)
+  // # define INDIRECT_ARRAY_SIZE (128)
+  // # define DINDIRECT_ARRAY_SIZE (16384)
+  // # define TINDIRECT_ARRAY_SIZE (2097152)
+
+  // deremented by 128
+  // return if deremented block number is smaller than 128^2 (or triple indirection)
+  bn -= NINDIRECT;
+
+  if (bn < DINDIRECT_ARRAY_SIZE){
+    // capable of access anyway.
+
+    // 첫번째 Double Indirect block을 가져온다.
+    if((addr = ip -> addrs[DINDIRECT_IDX]) == 0){
+      // double indirect block has not allocated
+      // allocate and also enter by chaning addr.
+      ip -> addrs[DINDIRECT_IDX] = addr = balloc(ip->dev);
+      // balloc 에서 내부적으로 bmap을 set해준다. inode가 지금 volatile on-memory 상에 있는 addrs 의 값은 이게 시스템 다운시에 바뀌려나 모르겠네.
+
+    }
+
+    // 이 block은 buf구조체 포인터인데, 할당은 했고, data에 주소들만 엄청 많을것.
+    uint indirect_idx = bn / NINDIRECT;
+    uint dindirect_idx = bn % NINDIRECT;
+    
+    // get [newly] allocated
+    // when to release? soon is better 
+    // also to reuse bp pointer
+    bp = bread(ip->dev,addr);
+
+
+    // char* to int*
+    a = (uint*) bp -> data;
+
+    if((addr = a[indirect_idx]) == 0){
+      a[indirect_idx] = balloc(ip->dev);
+      log_write(bp);
+    }
+
+    brelse(bp);
+
+    bp = bread(ip->dev,addr);
+
+    a = (uint*) bp -> data;
+
+    if((addr = a[dindirect_idx] == 0)){
+      a[dindirect_idx] = balloc(ip->dev); // allocating data block
+      log_write(bp);
+    }
+
+    brelse(bp);
+    return addr;
+  }
+
+  // triple indirect
+
+  // bn decremented by 128*128
+  bn -= DINDIRECT_ARRAY_SIZE;
+  if (bn < TINDIRECT_ARRAY_SIZE){
+
+    if((addr = ip -> addrs[TINDIRECT_IDX]))
+      ip -> addrs[TINDIRECT_IDX] = addr = balloc(ip->dev);
+
+    uint indirect_idx = bn / DINDIRECT_ARRAY_SIZE;
+    uint dindirect_idx = (bn % DINDIRECT_ARRAY_SIZE) / INDIRECT_ARRAY_SIZE;
+    uint tindirect_idx = (bn % DINDIRECT_ARRAY_SIZE) % INDIRECT_ARRAY_SIZE;
+
+    bp = bread(ip->dev,addr);
+
+    a = (uint*) bp -> data;
+
+    if((addr = a[indirect_idx]) == 0){
+      a[indirect_idx] = balloc(ip->dev);
+      log_write(bp);
+    }
+
+    brelse(bp);
+
+    bp = bread(ip->dev,addr);
+
+    a = (uint*) bp -> data;
+
+    if((addr = a[dindirect_idx]) == 0){
+      a[dindirect_idx] = balloc(ip->dev);
+      log_write(bp);
+    }
+
+    brelse(bp);
+
+    bp = bread(ip->dev,addr);
+
+    a = (uint*) bp -> data;
+
+    if((addr = a[tindirect_idx]) == 0){
+      a[tindirect_idx] = balloc(ip->dev); // allocating data block
+      log_write(bp);
+    }
+
+    brelse(bp);
+
+    return addr;
+  }
+
+  // really panic
   panic("bmap: out of range");
 }
 
@@ -503,6 +630,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     brelse(bp);
   }
 
+  // 여기서 sync가 불리는 것 같다.
   if(n > 0 && off > ip->size){
     ip->size = off;
     iupdate(ip);

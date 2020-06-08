@@ -76,11 +76,18 @@ struct gatedesc;
 static inline void
 lidt(struct gatedesc *p, int size)
 {
+  // l idt means 'load' interrupt descriptor table
+  // 32 번에 Timer interrupt 가 있듯이, 시스템콜, 키보드 인터럽트 등등의 handler 위치를 긁어온다.
+  // IDTR 은 48 비트다. base address
+  // gatedesc : 64비트네
+  // pd[1]에서는 후위 16비트
+  // pd[2]에는 IDTR에 들어갈 48비트를 긁어와서 setting 해주겠다.
   volatile ushort pd[3];
 
   pd[0] = size-1;
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
+  cprintf("%d %d %d\n",pd[0],pd[1],pd[2])
 
   asm volatile("lidt (%0)" : : "r" (pd));
 }

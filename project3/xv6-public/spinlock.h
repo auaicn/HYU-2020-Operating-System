@@ -9,3 +9,4 @@ struct spinlock {
                      // that locked the lock.
 };
 
+// size : 13

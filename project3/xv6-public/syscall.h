@@ -21,6 +21,9 @@
 #define SYS_mkdir  20
 #define SYS_close  21
 
-#define SYS_yield 22
+#define SYS_yield 	22
 #define	SYS_set_cpu_share 23
-#define SYS_getlev 24
+#define SYS_getlev 	24
+
+#define SYS_pread 	25
+#define SYS_pwrite 	26
