@@ -45,11 +45,18 @@ struct log {
   int dev;
   struct logheader lh;
 };
+
+// global unique definition
 struct log log;
 
 static void recover_from_log(void);
 static void commit();
 
+// initialize log's sleep lock
+// from device(image) get superblock
+// with superblock, get log start block, number of logs
+// set dev field
+// here, recovery is called.
 void
 initlog(int dev)
 {
@@ -58,6 +65,7 @@ initlog(int dev)
 
   struct superblock sb;
   initlock(&log.lock, "log");
+  // superblock has it's own getter!
   readsb(dev, &sb);
   log.start = sb.logstart;
   log.size = sb.nlog;
@@ -74,6 +82,7 @@ install_trans(void)
   for (tail = 0; tail < log.lh.n; tail++) {
     struct buf *lbuf = bread(log.dev, log.start+tail+1); // read log block
     struct buf *dbuf = bread(log.dev, log.lh.block[tail]); // read dst
+    // destination inode or datablock may be switched-out. we read them again with block number in block[tail]
     memmove(dbuf->data, lbuf->data, BSIZE);  // copy block to dst
     bwrite(dbuf);  // write dst to disk
     brelse(lbuf);
@@ -195,6 +204,7 @@ commit()
   if (log.lh.n > 0) {
     write_log();     // Write modified blocks from cache to log
     write_head();    // Write header to disk -- the real commit
+    cprintf("-----COMMIT------\n");
     install_trans(); // Now install writes to home locations
     log.lh.n = 0;
     write_head();    // Erase the transaction from the log

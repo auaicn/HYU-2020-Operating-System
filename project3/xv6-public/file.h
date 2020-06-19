@@ -24,7 +24,7 @@ struct inode {
   uint size;          
 
   // NDIRECT is 12
-  uint addrs[NDIRECT+1];
+  uint addrs[NDIRECT+3];
 };
 
 // table mapping major device number to

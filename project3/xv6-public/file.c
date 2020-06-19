@@ -77,6 +77,8 @@ fileclose(struct file *f)
     release(&ftable.lock);
     return;
   }
+
+  // evict from memory
   ff = *f;
   f->ref = 0;
   f->type = FD_NONE;

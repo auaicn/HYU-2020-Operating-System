@@ -76,7 +76,10 @@ bget(uint dev, uint blockno)
 
   // Is the block already cached?
   for(b = bcache.head.next; b != &bcache.head; b = b->next){
+
+    // here we do not check whether its' reference is 0
     if(b->dev == dev && b->blockno == blockno){
+      
       // 현재 dev에 할당이 되어있으며 까지는 오케이
       // block no이 같냐는건.. 아. 여기서 잡히면
       // cache hit
@@ -87,18 +90,40 @@ bget(uint dev, uint blockno)
 
       // 머.. 버퍼관련 락을 잡고 리턴해주고 싶은데,
       // sleep으로 기다리겠다. 그런 느낌인가봐
+      // exactly yes.
+      // after woke up by some other thread,
+      // it acquires lock. 
+      // this is the internal reason, why we should brelse() after finishing bread() usage. 
+
+
+      // here, neednot 'bcache' lock anymore. 
+      // we need 'buf' lock
       acquiresleep(&b->lock);
+
+      // but here, because we relased lock and slept with the condition 'when we wake up , lock is held to me'
+      // lock is acqured but 
+      // there is no acutal way to gurantee release-sleep-acquire.
+      // others can access the buffer between the period[release:acquiresleep]
+      // so check over is needed.
+      
+      // is.. what manual says but
+      // we increased refcnt anyway, so may be guranteed?
 
       // return buffer
       return b;
     }
   }
 
+  // still having bcache lock
+
   // cache miss
   // not dirty, 즉 clean page를 사용하겠다.
   // read중이면, ref가 0이 아닐텐데 배꿔주면,
   // 이상한걸 읽겠지. not desired action
   // 안전하게 clean 이면서 ref인걸 찾네.
+
+  // just get empty entry
+  // if disk-read is needed, bread who calls bget() calls iderw to fill buf with wanted data.
 
   // Not cached; recycle an unused buffer.
   // Even if refcnt==0, B_DIRTY indicates a buffer is in use
@@ -129,6 +154,15 @@ bread(uint dev, uint blockno)
   struct buf *b;
 
   b = bget(dev, blockno);
+
+  // in bget, cache miss and hit could occur
+  // on cache hit, it's valid bit would haven been set 
+  // on cache miss, bget only returns 'a little bit initialized'  cache buffer, 
+  // but for now, data is not filled with inode contents.
+  
+  // iderw() do for that
+  
+  // we got cache buffer entry but, it is not valid.
   if((b->flags & B_VALID) == 0) {
     iderw(b);
   }
@@ -139,6 +173,9 @@ bread(uint dev, uint blockno)
 void
 bwrite(struct buf *b)
 {
+  // different from bread,
+  // bwrite may enter with lock?
+  // may not sleep while holding the lock..
   if(!holdingsleep(&b->lock))
     panic("bwrite");
   b->flags |= B_DIRTY;

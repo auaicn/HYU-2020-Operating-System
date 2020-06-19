@@ -16,6 +16,7 @@ struct buf {
 // its size : 22 + 28 + 512 = 562 인가봐.
 
 // flag에 관한 내용같네.
-#define B_VALID 0x2  // buffer has been read from disk
+#define B_VALID 0x2  // buffer has been read from disk, the buffer contains copy of the block
 #define B_DIRTY 0x4  // buffer needs to be written to disk
 
+// there is B_BUSY flag, used in multh-threaded programming

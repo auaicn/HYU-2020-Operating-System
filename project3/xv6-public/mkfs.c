@@ -15,13 +15,18 @@
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
 #endif
 
+// #define NINODES 200
+// NINODES is not scalalable, as well as it has no meaning.
+// It represents maximum number of file.
+// 200 would be enough.
 #define NINODES 200
 
 // Disk layout:
+// here bit map is for inode, not for data block. 
 // [ boot block | sb block | log | inode blocks | free bit map | data blocks ]
 
-int nbitmap = FSSIZE/(BSIZE*8) + 1;
-int ninodeblocks = NINODES / IPB + 1;
+int nbitmap = FSSIZE/(BSIZE*8) + 1;     // per 4096 have 1
+int ninodeblocks = NINODES / IPB + 1;   
 int nlog = LOGSIZE;
 int nmeta;    // Number of meta blocks (boot, sb, nlog, inode, bitmap)
 int nblocks;  // Number of data blocks

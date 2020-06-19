@@ -8,8 +8,9 @@
 #define NDEV         10  // maximum major device number
 #define ROOTDEV       1  // device number of file system root disk
 #define MAXARG       32  // max exec arguments
-#define MAXOPBLOCKS  10  // max # of blocks any FS op writes
 #define LOGSIZE      (MAXOPBLOCKS*3)  // max data blocks in on-disk log // 30 block
+#define MAXOPBLOCKS  40  // max # of blocks any FS op writes
+//#define MAXOPBLOCKS  10  // max # of blocks any FS op writes
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache // 30개 밖에 안되나
 #define FSSIZE       10000  // size of file system in blocks
 #ifndef NULL

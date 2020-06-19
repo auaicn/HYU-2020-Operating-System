@@ -78,7 +78,7 @@ idestart(struct buf *b)
   if(b == 0)
     panic("idestart");
   if(b->blockno >= FSSIZE){
-    cprintf("block no : %d\n",b->blockno);
+    cprintf("ide.c: block no : %d\n",b->blockno);
     panic("incorrect blockno");
   }
   int sector_per_block =  BSIZE/SECTOR_SIZE; // becomes 1 here.
@@ -128,8 +128,10 @@ ideintr(void)
   wakeup(b);
 
   // Start disk on next buf in queue.
-  if(idequeue != 0)
+  if(idequeue != 0){
+    cprintf("in ideintr\n");
     idestart(idequeue);
+  }
 
   release(&idelock);
 }
@@ -157,7 +159,8 @@ iderw(struct buf *b)
   // bwrite에서는 그냥 dirty set하고 불렀는데?
   // valid는 좀더 예전에 걸러지나봐.
   if((b->flags & (B_VALID|B_DIRTY)) == B_VALID)
-    panic("iderw: nothing to do");
+     // should not have been called and entered here.
+     panic("iderw: nothing to do");
 
   // dev 는 device 이다.
   // havedisk1는 전역으로 0으로 되어 있는데,
@@ -179,9 +182,7 @@ iderw(struct buf *b)
   b 는 byte를 뜻해서, 8bit bus인지 아무튼 1000번을 읽어오네.
   하나라도 0이 아닌 값이 들어오면 disk1이 있다고 설정을 해주고, 더이상 inb를 하지 않고 break 후
   disk 0으로 돌아간대. 돌아가는게 outb로 되는진 모르겟지만.
-  
   */
-
 
 
   // 아무튼 이 함수는 말이야. havedisk1이 1이어야지 동작을 한다.
@@ -202,10 +203,17 @@ iderw(struct buf *b)
 
   // 하나 넣었는데, 그놈이 그놈이야. 그럼 비어있었다는 얘기.
   // Start disk if necessary.
-  if(idequeue == b)
+  
+  if(idequeue == b){
+    cprintf("in ide read/write iderw block no [%d] it consists of char [%d] pid [%d]\n",b->blockno,b->data[0]-'0',myproc()->pid);
     idestart(b);
+  }
 
-  // Wait for request to finish.
+  // Oh it waits! then surely written I suppose
+  // Wait for request to finish
+  // maybe, kernel(myproc() == 0) executer would handle all in once.
+  // because sleep() internally uses ptable lock
+  // we want the buf on queue
   while((b->flags & (B_VALID|B_DIRTY)) != B_VALID){
     sleep(b, &idelock);
   }

@@ -48,6 +48,7 @@ bzero(int dev, int bno)
 
   bp = bread(dev, bno);
   memset(bp->data, 0, BSIZE);
+  cprintf("bzero log_wrtie\n");
   log_write(bp);
   brelse(bp);
 }
@@ -68,6 +69,7 @@ balloc(uint dev)
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
+        cprintf("balloc log write\n");
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
@@ -92,6 +94,7 @@ bfree(int dev, uint b)
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
   bp->data[bi/8] &= ~m;
+  cprintf("bfree log_write\n");
   log_write(bp);
   brelse(bp);
 }
@@ -182,7 +185,7 @@ iinit(int dev)
 
   readsb(dev, &sb);
   cprintf("sb: size %d nblocks %d ninodes %d nlog %d logstart %d\
- inodestart %d bmap start %d\n", sb.size, sb.nblocks,
+ inodestart %d bmap start %d by fs.c:iinit()\n", sb.size, sb.nblocks,
           sb.ninodes, sb.nlog, sb.logstart, sb.inodestart,
           sb.bmapstart);
 }
@@ -244,6 +247,8 @@ iupdate(struct inode *ip)
 
   // 13개 바꿔준다. 그 아래 indirect childs는 이미 log write했다. bmap에서.
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
+
+  cprintf("iupdate log write\n");
   log_write(bp);
   brelse(bp);
 }
@@ -388,135 +393,104 @@ bmap(struct inode *ip, uint bn)
   uint addr, *a;
   struct buf *bp;
 
+  // DIRECT
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev); // allocating data block
+
     return addr;
   }
-  bn -= NDIRECT;
 
-  if(bn < NINDIRECT){
-    // Load indirect block, allocating if necessary.
+  // INDIRECT
+  bn -= NDIRECT;
+  if(bn < (1<<7)){
+
+    // #define INDIRECT_IDX 10
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
+
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev); // allocating data block
       log_write(bp);
     }
     brelse(bp);
+
     return addr;
   }
 
-  // for now
-  //panic("bmap: out of range"); 
 
-  // project 3 implementation
+  // DOUBLE INDIRECT
+  bn -= (1<<7);
+  if (bn < (1<<14)){
 
-  // not returned -> escaped
-  // double indirect
-  // bigger than 140 block
-  // block number decremented by 140 now
-  // # define DINDIRECT_IDX (11)
-  // # define TINDIRECT_IDX (12)
-  // # define INDIRECT_ARRAY_SIZE (128)
-  // # define DINDIRECT_ARRAY_SIZE (16384)
-  // # define TINDIRECT_ARRAY_SIZE (2097152)
-
-  // deremented by 128
-  // return if deremented block number is smaller than 128^2 (or triple indirection)
-  bn -= NINDIRECT;
-
-  if (bn < DINDIRECT_ARRAY_SIZE){
-    // capable of access anyway.
-
-    // 첫번째 Double Indirect block을 가져온다.
+    // DINDIRECT_IDX 11
     if((addr = ip -> addrs[DINDIRECT_IDX]) == 0){
-      // double indirect block has not allocated
-      // allocate and also enter by chaning addr.
-      ip -> addrs[DINDIRECT_IDX] = addr = balloc(ip->dev);
-      // balloc 에서 내부적으로 bmap을 set해준다. inode가 지금 volatile on-memory 상에 있는 addrs 의 값은 이게 시스템 다운시에 바뀌려나 모르겠네.
-
+       ip -> addrs[DINDIRECT_IDX] = addr = balloc(ip->dev);
     }
 
-    // 이 block은 buf구조체 포인터인데, 할당은 했고, data에 주소들만 엄청 많을것.
-    uint indirect_idx = bn / NINDIRECT;
-    uint dindirect_idx = bn % NINDIRECT;
-    
-    // get [newly] allocated
-    // when to release? soon is better 
-    // also to reuse bp pointer
+    // LEV 1 block (only for indirection)
     bp = bread(ip->dev,addr);
-
-
-    // char* to int*
     a = (uint*) bp -> data;
 
-    if((addr = a[indirect_idx]) == 0){
-      a[indirect_idx] = balloc(ip->dev);
+    if((addr = a[bn >> 7]) == 0){
+      a[bn >> 7] = addr = balloc(ip->dev);
       log_write(bp);
     }
-
     brelse(bp);
 
+    // LEV 2 block (data block)
     bp = bread(ip->dev,addr);
-
     a = (uint*) bp -> data;
 
-    if((addr = a[dindirect_idx] == 0)){
-      a[dindirect_idx] = balloc(ip->dev); // allocating data block
+    if((addr = a[bn & 0x7F]) == 0){
+      a[bn & 0x7F] = addr = balloc(ip->dev); // allocating data block
       log_write(bp);
     }
-
     brelse(bp);
+
     return addr;
   }
 
-  // triple indirect
+  // TRIPLE INDRIECT 
+  bn -= (1<<14);
+  if (bn < (1<<21)){
 
-  // bn decremented by 128*128
-  bn -= DINDIRECT_ARRAY_SIZE;
-  if (bn < TINDIRECT_ARRAY_SIZE){
-
-    if((addr = ip -> addrs[TINDIRECT_IDX]))
+    // TINDIRECT_IDX 12
+    if((addr = ip -> addrs[TINDIRECT_IDX]) == 0){
       ip -> addrs[TINDIRECT_IDX] = addr = balloc(ip->dev);
-
-    uint indirect_idx = bn / DINDIRECT_ARRAY_SIZE;
-    uint dindirect_idx = (bn % DINDIRECT_ARRAY_SIZE) / INDIRECT_ARRAY_SIZE;
-    uint tindirect_idx = (bn % DINDIRECT_ARRAY_SIZE) % INDIRECT_ARRAY_SIZE;
-
-    bp = bread(ip->dev,addr);
-
-    a = (uint*) bp -> data;
-
-    if((addr = a[indirect_idx]) == 0){
-      a[indirect_idx] = balloc(ip->dev);
-      log_write(bp);
     }
 
+    // LEV 1 block (only for indirection)
+    bp = bread(ip->dev,addr);
+    a = (uint*) bp -> data;
+
+    if((addr = a[bn >> 14]) == 0){
+      a[bn >> 14] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
     brelse(bp);
 
+    // LEV 2 block (only for indirection)
     bp = bread(ip->dev,addr);
-
     a = (uint*) bp -> data;
 
-    if((addr = a[dindirect_idx]) == 0){
-      a[dindirect_idx] = balloc(ip->dev);
+    if((addr = a[0x7F & (bn >> 7)]) == 0){
+      a[0x7F & (bn >> 7)] = addr = balloc(ip->dev);
       log_write(bp);
     }
-
     brelse(bp);
 
+    // LEV 3 block (data block)
     bp = bread(ip->dev,addr);
-
     a = (uint*) bp -> data;
 
-    if((addr = a[tindirect_idx]) == 0){
-      a[tindirect_idx] = balloc(ip->dev); // allocating data block
+    if((addr = a[0x7F & bn]) == 0){
+      a[0x7F & bn] = addr = balloc(ip->dev); // allocating data block
       log_write(bp);
     }
-
     brelse(bp);
 
     return addr;
@@ -534,9 +508,9 @@ bmap(struct inode *ip, uint bn)
 static void
 itrunc(struct inode *ip)
 {
-  int i, j;
-  struct buf *bp;
-  uint *a;
+  int i, j, k;
+  struct buf *bp,dbp,tbp;
+  uint *a,da,ta;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -545,7 +519,9 @@ itrunc(struct inode *ip)
     }
   }
 
+  // free indirect block
   if(ip->addrs[NDIRECT]){
+
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
@@ -554,7 +530,46 @@ itrunc(struct inode *ip)
     }
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
+
     ip->addrs[NDIRECT] = 0;
+  }
+
+  if(ip->addrs[DINDIRECT_IDX]){
+
+    bp = bread(ip->dev, ip->addrs[DINDIRECT_IDX]);
+    a = (uint*)bp->data;
+    for (i = 0; i < (1<<7) ; i++){
+      if(a[i]){
+
+        dbp = bread(ip->dev,a[i]);
+        da = (uint*)dbp->data;
+        for(j = 0; j < (1<<7); j++){
+          if(da[j])
+            bfree(ip->dev, da[j]);
+        }
+        brelse(dbp);
+        free(a[i]);
+
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev,ip->addrs[DINDIRECT_IDX]);
+
+    ip->addrs[DINDIRECT_IDX] = 0;
+  }
+
+  if(ip->addrs[TINDIRECT_IDX]){
+
+    bp = bread(ip->dev, ip->addrs[TINDIRECT_IDX]);
+    a = (uint*)bp -> data;
+    for (i = 0; i < (1<<7); i++){
+
+    }
+    brelse(bp);
+    free(addrs[TINDIRECT_IDX]);
+
+    ip->addrs[TINDIRECT_IDX] = 0;
+
   }
 
   ip->size = 0;
@@ -632,6 +647,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
+    cprintf("writei\n");
     log_write(bp);
     brelse(bp);
   }
