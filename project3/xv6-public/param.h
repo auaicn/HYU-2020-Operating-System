@@ -12,7 +12,7 @@
 #define MAXOPBLOCKS  40  // max # of blocks any FS op writes
 //#define MAXOPBLOCKS  10  // max # of blocks any FS op writes
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache // 30개 밖에 안되나
-#define FSSIZE       10000  // size of file system in blocks
+#define FSSIZE       10000000  // size of file system in blocks
 #ifndef NULL
 #define NULL		 ((void*)0)
 #endif

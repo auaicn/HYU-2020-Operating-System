@@ -188,6 +188,9 @@ UPROGS=\
 	_test\
 	_bigtest\
 	_midtest\
+	_stress\
+	_pwrite\
+	_pread\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -260,7 +263,7 @@ EXTRA=\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil \
-	test_mlfq.c test_stride.c test_master.c test.c bigtest.c midtest.c\
+	test_mlfq.c test_stride.c test_master.c test.c bigtest.c midtest.c stress.c pwrite.c pread.c\
 
 dist:
 	rm -rf dist

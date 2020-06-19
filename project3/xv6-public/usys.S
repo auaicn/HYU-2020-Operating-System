@@ -34,3 +34,5 @@ SYSCALL(yield)
 SYSCALL(set_cpu_share)
 SYSCALL(getlev)
 
+SYSCALL(pread)
+SYSCALL(pwrite)

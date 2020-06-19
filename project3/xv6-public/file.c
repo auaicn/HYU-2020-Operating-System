@@ -19,13 +19,87 @@ struct {
 int     
 pwrite(struct file* f, char* addr, int n , int offset)
 {
-  return 0;
+  int r;
+
+  if(f->writable == 0)
+    return -1;
+
+  if(f->type == FD_PIPE)
+    // not implemented for PIPE type file
+    return pipewrite(f->pipe, addr, n);
+
+  if(f->type == FD_INODE){
+    // write a few blocks at a time to avoid exceeding
+    // the maximum log transaction size, including
+    // i-node, indirect block, allocation blocks,
+    // and 2 blocks of slop for non-aligned writes.
+    // this really belongs lower down, since writei()
+    // might be writing a device like the console.
+
+    // max block by max block at most.
+    int max = ((MAXOPBLOCKS-1-1-2) / 2) * 512;
+    int i = 0;
+    while(i < n){
+      int n1 = n - i;
+      if(n1 > max)
+        n1 = max;
+
+      begin_op();
+      ilock(f->ip);
+      if ((r = writei(f->ip, addr + i, offset, n1)) > 0)
+        offset += r;
+        //f->off += r;
+      iunlock(f->ip);
+      end_op();
+
+      if(r < 0)
+        break;
+      if(r != n1)
+        panic("short filewrite");
+      i += r;
+    }
+    return i == n ? n : -1;
+  }
+
+  panic("filewrite");
 }
 
 int     
 pread(struct file* f, char* addr, int n , int offset)
 {
-  return 0;
+  int r;
+
+  if(f->readable == 0)
+    return -1;
+
+  if(f->type == FD_PIPE)
+    // for pipeline read, not implemented. ignore offset field and operate as same as fileread.
+    return piperead(f->pipe, addr, n);
+
+  if(f->type == FD_INODE){
+
+    ilock(f->ip);
+    if (offset == f -> ip -> size){
+      // EOF
+      return 0;
+    }
+
+    if (offset + n > f -> ip -> size || offset + n < offset){
+      cprintf("position to read is out of file size\n");
+      return -1;
+    }
+
+    if((r = readi(f -> ip, addr, offset, n)) < 0){
+      cprintf("[Error] readi\n");
+      iunlock(f->ip);
+      return -1;
+    }
+    iunlock(f->ip);
+    return r;
+  }
+
+  // readable but type NONE. doens't make sense.
+  panic("fileread");
 }
 	
 void

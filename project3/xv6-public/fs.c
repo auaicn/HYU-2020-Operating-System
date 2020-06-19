@@ -622,8 +622,9 @@ readi(struct inode *ip, char *dst, uint off, uint n)
     return devsw[ip->major].read(ip, dst, n);
   }
 
-  if(off > ip->size || off + n < off)
+  if(off > ip->size || off + n < off){
     return -1;
+  }
   if(off + n > ip->size)
     n = ip->size - off;
 
