@@ -204,7 +204,7 @@ commit()
   if (log.lh.n > 0) {
     write_log();     // Write modified blocks from cache to log
     write_head();    // Write header to disk -- the real commit
-    cprintf("-----COMMIT------\n");
+    //cprintf("-----COMMIT------\n");
     install_trans(); // Now install writes to home locations
     log.lh.n = 0;
     write_head();    // Erase the transaction from the log

@@ -48,7 +48,7 @@ bzero(int dev, int bno)
 
   bp = bread(dev, bno);
   memset(bp->data, 0, BSIZE);
-  cprintf("bzero log_wrtie\n");
+  //cprintf("bzero log_wrtie\n");
   log_write(bp);
   brelse(bp);
 }
@@ -69,7 +69,7 @@ balloc(uint dev)
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
         bp->data[bi/8] |= m;  // Mark block in use.
-        cprintf("balloc log write\n");
+        //cprintf("balloc log write\n");
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
@@ -94,7 +94,7 @@ bfree(int dev, uint b)
   if((bp->data[bi/8] & m) == 0)
     panic("freeing free block");
   bp->data[bi/8] &= ~m;
-  cprintf("bfree log_write\n");
+ //cprintf("bfree log_write\n");
   log_write(bp);
   brelse(bp);
 }
@@ -248,7 +248,7 @@ iupdate(struct inode *ip)
   // 13개 바꿔준다. 그 아래 indirect childs는 이미 log write했다. bmap에서.
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
 
-  cprintf("iupdate log write\n");
+  //cprintf("iupdate log write\n");
   log_write(bp);
   brelse(bp);
 }
@@ -509,8 +509,8 @@ static void
 itrunc(struct inode *ip)
 {
   int i, j, k;
-  struct buf *bp,dbp,tbp;
-  uint *a,da,ta;
+  struct buf *bp,*dbp,*tbp;
+  uint *a,*da,*ta;
 
   for(i = 0; i < NDIRECT; i++){
     if(ip->addrs[i]){
@@ -548,7 +548,7 @@ itrunc(struct inode *ip)
             bfree(ip->dev, da[j]);
         }
         brelse(dbp);
-        free(a[i]);
+        bfree(ip->dev, a[i]);
 
       }
     }
@@ -563,13 +563,32 @@ itrunc(struct inode *ip)
     bp = bread(ip->dev, ip->addrs[TINDIRECT_IDX]);
     a = (uint*)bp -> data;
     for (i = 0; i < (1<<7); i++){
+      if(a[i]){
 
+        dbp = bread(ip->dev,a[i]);
+        da = (uint*)dbp->data;
+        for(j = 0; j < (1<<7); j++){
+          if(da[j]){
+
+            tbp = bread(ip->dev,da[j]);
+            ta = (uint*)tbp->data;
+            for (k = 0; k < (1<<7); k++){
+              if(ta[k])
+                bfree(ip->dev,ta[k]);
+            }
+            brelse(tbp);
+            bfree(ip->dev, da[j]);
+
+          }
+        }
+        brelse(dbp);
+        bfree(ip->dev,a[i]);
+      }
     }
     brelse(bp);
-    free(addrs[TINDIRECT_IDX]);
+    bfree(ip->dev, ip->addrs[TINDIRECT_IDX]);
 
     ip->addrs[TINDIRECT_IDX] = 0;
-
   }
 
   ip->size = 0;
@@ -647,7 +666,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     bp = bread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
-    cprintf("writei\n");
+    //cprintf("writei\n");
     log_write(bp);
     brelse(bp);
   }

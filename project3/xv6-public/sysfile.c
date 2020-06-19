@@ -276,6 +276,7 @@ create(char *path, short type, short major, short minor)
   ilock(dp);
 
   if((ip = dirlookup(dp, name, 0)) != 0){
+    // there exists.
     iunlockput(dp);
     ilock(ip);
     if(type == T_FILE && ip->type == T_FILE)
@@ -284,6 +285,7 @@ create(char *path, short type, short major, short minor)
     return 0;
   }
 
+  // whether pipe, inode, only type is given and then ialloc returns some.
   if((ip = ialloc(dp->dev, type)) == 0)
     panic("create: ialloc");
 
@@ -329,6 +331,7 @@ sys_open(void)
     if(ip == 0){
       // 이미 있으면 create가 0을 리턴하겠지.
       // w+, truncate모드를 지원하는지는 아직은 잘 모르겠다.
+      // semms like not doing truncate
       end_op();
       return -1;
     }

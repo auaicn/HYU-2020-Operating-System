@@ -205,7 +205,7 @@ iderw(struct buf *b)
   // Start disk if necessary.
   
   if(idequeue == b){
-    cprintf("in ide read/write iderw block no [%d] it consists of char [%d] pid [%d]\n",b->blockno,b->data[0]-'0',myproc()->pid);
+    //cprintf("in ide read/write iderw block no [%d] it consists of char [%d] pid [%d]\n",b->blockno,b->data[0]-'0',myproc()->pid);
     idestart(b);
   }
 
