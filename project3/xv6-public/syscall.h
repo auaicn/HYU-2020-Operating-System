@@ -25,5 +25,8 @@
 #define	SYS_set_cpu_share 23
 #define SYS_getlev 	24
 
+// project 3
 #define SYS_pread 	25
 #define SYS_pwrite 	26
+#define SYS_sync	27
+#define SYS_get_log_num	28

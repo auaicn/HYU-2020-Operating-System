@@ -111,6 +111,10 @@ extern int sys_yield(void);
 extern int sys_pread(void);
 extern int sys_pwrite(void);
 
+extern int sys_sync(void);
+extern int sys_get_log_num(void);
+
+
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
 [SYS_exit]    sys_exit,
@@ -142,6 +146,9 @@ static int (*syscalls[])(void) = {
 // project 3
 [SYS_pread]   sys_pread,
 [SYS_pwrite]  sys_pwrite,
+
+[SYS_sync]  sys_sync,
+[SYS_get_log_num] sys_get_log_num,
 
 };
 

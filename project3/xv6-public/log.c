@@ -57,6 +57,33 @@ static void commit();
 // with superblock, get log start block, number of logs
 // set dev field
 // here, recovery is called.
+
+int
+sys_get_log_num(void)
+{
+  return get_log_num();
+}
+
+int
+get_log_num(void)
+{
+  acquire(&log.lock);
+  int n = log.lh.n;
+  release(&log.lock);
+  return n;
+}
+
+int 
+sys_sync(void)
+{
+  return sync();
+}
+
+int
+sync(void)
+{
+  return 0;
+}
 void
 initlog(int dev)
 {

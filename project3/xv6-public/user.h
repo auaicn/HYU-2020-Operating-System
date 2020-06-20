@@ -32,6 +32,8 @@ int yield(void); // yield
 // project 3
 int pwrite(int, void*, int, int);
 int pread(int, void*, int, int);
+int sync(void);
+int get_log_num(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

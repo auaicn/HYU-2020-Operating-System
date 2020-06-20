@@ -2,7 +2,7 @@
 #include "stat.h"
 #include "user.h"
 
-#define BIGSIZE (1000000)
+#define BIGSIZE (100000)
 
 char buf[BIGSIZE];
 char read_sentence[BIGSIZE];

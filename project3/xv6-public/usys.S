@@ -36,3 +36,5 @@ SYSCALL(getlev)
 
 SYSCALL(pread)
 SYSCALL(pwrite)
+SYSCALL(sync)
+SYSCALL(get_log_num)

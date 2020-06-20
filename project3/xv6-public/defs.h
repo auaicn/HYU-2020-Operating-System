@@ -14,6 +14,8 @@ struct superblock;
 // project 3
 int 		pwrite(struct file*, char*, int, int);
 int 		pread(struct file*, char*, int, int);
+int 		sync(void);
+int 		get_log_num(void);
 
 // boost visible to trap.c
 void 			boost (void);
