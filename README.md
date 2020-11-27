@@ -1,4 +1,4 @@
-## 20_Operating_System
+## HYU-Operation-System
 HYU(Hanyang University) ELE3021 수업 Operating System 을 위한 Project Repository 입니다.  
   
 Class of Operating System,  
